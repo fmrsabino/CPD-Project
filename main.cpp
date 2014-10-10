@@ -52,7 +52,7 @@ void createMatrixFromFile(std::string path, std::vector< std::vector<int> > &mat
 		getLine(file, line);
 		//nLines = atoi(line.c_str());
 	}
-*/
+	*/
 	createMatrix(y.size()+1, x.size()+1, matrix);
 }
 
