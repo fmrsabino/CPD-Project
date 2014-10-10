@@ -5,9 +5,11 @@
 #include <string>
 
 void processMatrix(std::vector< std::vector<int> > &matrix, std::string x, std::string y);
+std::string backtrack(std::vector< std::vector<int> > &matrix, std::string x, std::string y, int i, int j);
 void createMatrixFromFile(std::string path, std::vector< std::vector<int> > &matrix, std::string x, std::string y);
 void createMatrix(int l, int c, std::vector< std::vector<int> > &matrix);
 void printMatrix(std::vector< std::vector<int> > &matrix);
+short cost(int x);
 
 
 int main() {
@@ -18,6 +20,9 @@ int main() {
 	createMatrixFromFile("", matrix, x, y);
 	processMatrix(matrix, x, y);
 	printMatrix(matrix);
+	std::string result = backtrack(matrix, x, y, x.size(), y.size()); 
+
+	std::cout << result << std::endl;
 	return 0;
 	
 }
@@ -31,13 +36,25 @@ void processMatrix(std::vector< std::vector<int> > &matrix, std::string x, std::
         for (int j = 1; j < lines; j++) {
         std::cout << "column:" << j << std::endl; 
             if(x[i-1] == y[j-1]) {
-            	matrix[i][j] = matrix[i-1][j-1] + 1;
+            	matrix[i][j] = matrix[i-1][j-1] + cost(i);
             }
             else {
             	matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
             }
         }
     }
+}
+
+std::string backtrack(std::vector< std::vector<int> > &matrix, std::string x, std::string y, int i, int j){
+	if(i==0 || j==0) {
+		return "" ;
+	} else {
+		if(x[i] == y[j]) {
+			return backtrack(matrix,x,y,i-1,j-1).append(std::string(1, x[i-1]));
+		} else {
+			return backtrack(matrix,x,y,i-1,j);	
+		}	
+	}
 }
 
 
