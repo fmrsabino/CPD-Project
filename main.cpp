@@ -32,27 +32,31 @@ void processMatrix(std::vector< std::vector<int> > &matrix, std::string x, std::
 	int lines = matrix[0].size();
 
 	for(int i = 1; i < columns; i++) {
-		std::cout << "line:" << i << std::endl;
+		//std::cout << "line:" << i << std::endl;
         for (int j = 1; j < lines; j++) {
-        std::cout << "column:" << j << std::endl; 
+        //std::cout << "column:" << j << std::endl; 
             if(x[i-1] == y[j-1]) {
             	matrix[i][j] = matrix[i-1][j-1] + cost(i);
-            }
-            else {
+            } else {
             	matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
             }
         }
     }
 }
 
-std::string backtrack(std::vector< std::vector<int> > &matrix, std::string x, std::string y, int i, int j){
+std::string backtrack(std::vector< std::vector<int> > &matrix, std::string x, std::string y, int i, int j) {
+    
+    /*std::cout << "Position of matrix " << i << " " << j << std::endl;
+    std::cout << "Letter of X: " << x[i-1] << std::endl;
+    std::cout << "Letter of Y: " << y[j-1] << std::endl;*/
+
 	if(i==0 || j==0) {
 		return "" ;
 	} else {
-		if(x[i] == y[j]) {
-			return backtrack(matrix,x,y,i-1,j-1).append(std::string(1, x[i-1]));
+		if(x[i-1] == y[j-1]) {
+			return backtrack(matrix, x, y, i-1, j-1).append(std::string(1, x[i-1]));
 		} else {
-			return backtrack(matrix,x,y,i-1,j);	
+			return backtrack(matrix, x, y, i, j-1);	
 		}	
 	}
 }
@@ -90,7 +94,7 @@ void printMatrix(std::vector< std::vector<int> > &matrix) {
 	}
 }
 
-short cost(int x){
+short cost(int x) {
 	int i, n_iter = 20;
 	double dcost = 0;
 	for(i = 0; i < n_iter; i++)
