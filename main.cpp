@@ -5,6 +5,7 @@
 #include <string>
 #include <fstream>
 #include <sstream> 
+#include <stdlib.h>
 
 //#define _DEBUG
 //#define _TESTDRIVE
@@ -134,9 +135,9 @@ std::string backtrack(std::vector< std::vector<int> > &matrix, std::string x, st
 
 
 void printMatrix(std::vector< std::vector<int> > &matrix) {
-	for (int i = 0; i < matrix.size(); ++i) {
+	for (unsigned int i = 0; i < matrix.size(); ++i) {
 		std::vector<int> column = matrix[i];
-		for (int j = 0; j < column.size(); ++j) {
+		for (unsigned int j = 0; j < column.size(); ++j) {
 			std::cout << column[j] << " ";
 		}
 		std::cout << std::endl;
