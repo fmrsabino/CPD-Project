@@ -6,6 +6,10 @@
 #include <fstream>
 #include <sstream> 
 
+//#define _DEBUG
+//#define _TESTDRIVE
+//#define _DUMP
+
 void fillMatrixFromFile(std::string path, std::vector< std::vector<int> > &matrix, std::string &x, std::string &y);
 void createMatrix(int l, int c, std::vector< std::vector<int> > &matrix);
 void processMatrix(std::vector< std::vector<int> > &matrix, std::string x, std::string y);
@@ -14,22 +18,38 @@ void printMatrix(std::vector< std::vector<int> > &matrix);
 short cost(int x);
 
 
-int main() {
+int main(int argc, char* argv[]) {
+
+	if(argc != 2){
+		std::cout << "Exactly one input parameter is allowed. This should be the name of the input file present in public-instances." << std::endl;
+		exit(EXIT_FAILURE);
+	}
+
+	std::string path("public-instances/");
+    path+= argv[1];
+
+
     std::vector< std::vector<int> > matrix;
     std::string x = "ABCBDAB";
     std::string y = "BDCABA";    
 
-	fillMatrixFromFile("public-instances/ex10.15.in", matrix, x, y);
-	
+    #ifndef _TESTDRIVE
+	fillMatrixFromFile(path, matrix, x, y);
+	#endif
 
     // Example:
-    //createMatrix(y.size()+1, x.size()+1, matrix);
-    //processMatrix(matrix, x, y);
+    #ifdef _TESTDRIVE
+    createMatrix(y.size()+1, x.size()+1, matrix);
+    processMatrix(matrix, x, y);
+    #endif
+    
+	//Warning: printing to stdout may be slow
+	#ifdef _DUMP
+	printMatrix(matrix);
+	#endif
 
-    //Warning: printing to stdout may be slow
-	//printMatrix(matrix);
-
-	std::string result = backtrack(matrix, x, y, x.size(), y.size()); 
+	std::string result = backtrack(matrix, x, y, x.size(), y.size());
+	std::cout << result.size() << std::endl; 
 	std::cout << result << std::endl;
 
 	return 0;	
@@ -51,15 +71,18 @@ void fillMatrixFromFile(std::string path, std::vector< std::vector<int> > &matri
 
         ss >> nLines >> nCols;
 
+        #ifdef _DEBUG
         std::cout << "Number of lines: " << nLines << std::endl;
         std::cout << "Number of cols: " << nCols << std::endl;
-
+        #endif
         
         std::getline(file, x);
         std::getline(file, y);
 
+        #ifdef _DEBUG
         std::cout << "X: " << x << std::endl;
         std::cout << "Y: " << y << std::endl;
+        #endif
 
         createMatrix(y.size()+1, x.size()+1, matrix);
         processMatrix(matrix, x, y);
@@ -101,10 +124,10 @@ std::string backtrack(std::vector< std::vector<int> > &matrix, std::string x, st
     } else if(x[i-1] == y[j-1]) {
         return backtrack(matrix, x, y, i-1, j-1).append(std::string(1, x[i-1]));
     } else {
-		if(matrix[i][j-1] == matrix[i-1][j] || matrix[i][j-1] > matrix[i-1][j]) {
-			return backtrack(matrix, x, y, i, j-1);
-		} else {
+		if(matrix[i][j-1] < matrix[i-1][j]) {
 			return backtrack(matrix, x, y, i-1, j);	
+		} else {
+			return backtrack(matrix, x, y, i, j-1);
 		}	
 	}
 }
