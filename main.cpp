@@ -11,7 +11,7 @@
 //#define _TESTDRIVE
 //#define _DUMP
 
-void fillMatrixFromFile(std::string path, std::vector< std::vector<int> > &matrix, std::string &x, std::string &y);
+bool fillMatrixFromFile(std::string path, std::vector< std::vector<int> > &matrix, std::string &x, std::string &y);
 void createMatrix(int l, int c, std::vector< std::vector<int> > &matrix);
 void processMatrix(std::vector< std::vector<int> > &matrix, std::string x, std::string y);
 std::string backtrack(std::vector< std::vector<int> > &matrix, std::string x, std::string y, int i, int j);
@@ -35,13 +35,21 @@ int main(int argc, char* argv[]) {
   std::string y = "BDCABA";    
 
   #ifndef _TESTDRIVE
-  fillMatrixFromFile(path, matrix, x, y);
+  if(fillMatrixFromFile(path, matrix, x, y)) {
+    std::string result = backtrack(matrix, x, y, x.size(), y.size());
+    std::cout << result.size() << std::endl; 
+    std::cout << result << std::endl;
+  }
   #endif
 
   // Example:
   #ifdef _TESTDRIVE
   createMatrix(y.size()+1, x.size()+1, matrix);
   processMatrix(matrix, x, y);
+
+  std::string result = backtrack(matrix, x, y, x.size(), y.size());
+  std::cout << result.size() << std::endl; 
+  std::cout << result << std::endl;
   #endif
   
   //Warning: printing to stdout may be slow
@@ -49,14 +57,13 @@ int main(int argc, char* argv[]) {
   printMatrix(matrix);
   #endif
 
-  std::string result = backtrack(matrix, x, y, x.size(), y.size());
-  std::cout << result.size() << std::endl; 
-  std::cout << result << std::endl;
-
   return 0; 
 }
 
-void fillMatrixFromFile(std::string path, std::vector< std::vector<int> > &matrix, std::string &x, std::string &y) {
+/**
+  * Returns true if the file and matrix processing was successful. False otherwise
+  */
+bool fillMatrixFromFile(std::string path, std::vector< std::vector<int> > &matrix, std::string &x, std::string &y) {
   std::ios_base::sync_with_stdio (false);
 
   std::stringstream ss;
@@ -87,6 +94,9 @@ void fillMatrixFromFile(std::string path, std::vector< std::vector<int> > &matri
 
     createMatrix(y.size()+1, x.size()+1, matrix);
     processMatrix(matrix, x, y);
+    return true;
+  } else {
+    return false;
   }
 }
 
