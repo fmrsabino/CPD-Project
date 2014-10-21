@@ -101,7 +101,9 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<int> > &matri
 }
 
 void createMatrix(int l, int c, std::vector< std::vector<int> > &matrix) {
-  for (int i = 0; i < c; ++i) {
+  int i;
+  #pragma omp parallel for private(i)
+  for (i = 0; i < c; ++i) {
     std::vector<int> column(l, 0);
     matrix.push_back(column);
   }
