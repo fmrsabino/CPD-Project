@@ -1,0 +1,1 @@
+kinst-ompp gcc -o file file.c -fopenmp
