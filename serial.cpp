@@ -6,17 +6,18 @@
 #include <fstream>
 #include <sstream> 
 #include <stdlib.h>
+#include <algorithm>
 
 //#define _DEBUG
 //#define _TESTDRIVE
 //#define _DUMP
 
-bool fillMatrixFromFile(std::string path, std::vector< std::vector<int> > &matrix, std::string &x, std::string &y);
-void createMatrix(int l, int c, std::vector< std::vector<int> > &matrix);
-void processMatrix(std::vector< std::vector<int> > &matrix, std::string x, std::string y);
-std::string backtrack(std::vector< std::vector<int> > &matrix, std::string x, std::string y, int i, int j);
-void printMatrix(std::vector< std::vector<int> > &matrix);
-short cost(int x);
+bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &x, std::string &y);
+void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix);
+void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
+void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y, unsigned short i, unsigned short j, std::stringstream &ss);
+void printMatrix(std::vector< std::vector<unsigned short> > &matrix);
+unsigned short cost(unsigned short x);
 
 
 int main(int argc, char* argv[]) {
@@ -26,17 +27,21 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  std::string path("public-instances/");
+  std::string path("test-files/");
   path+= argv[1];
 
 
-  std::vector< std::vector<int> > matrix;
+  std::vector< std::vector<unsigned short> > matrix;
   std::string x = "ABCBDAB";
-  std::string y = "BDCABA";    
+  std::string y = "BDCABA";
+
+  std::stringstream ss;    
 
   #ifndef _TESTDRIVE
   if(fillMatrixFromFile(path, matrix, x, y)) {
-    std::string result = backtrack(matrix, x, y, x.size(), y.size());
+    backtrack(matrix, x, y, x.size(), y.size(), ss);
+    std::string result = ss.str();
+    std::reverse(result.begin(), result.end());
     std::cout << result.size() << std::endl; 
     std::cout << result << std::endl;
   }
@@ -46,8 +51,9 @@ int main(int argc, char* argv[]) {
   #ifdef _TESTDRIVE
   createMatrix(y.size()+1, x.size()+1, matrix);
   processMatrix(matrix, x, y);
+  backtrack(matrix, x, y, x.size(), y.size(), ss);
 
-  std::string result = backtrack(matrix, x, y, x.size(), y.size());
+  std::string result = ss.str();
   std::cout << result.size() << std::endl; 
   std::cout << result << std::endl;
   #endif
@@ -57,13 +63,15 @@ int main(int argc, char* argv[]) {
   printMatrix(matrix);
   #endif
 
+  //delete ss;
+
   return 0; 
 }
 
 /**
   * Returns true if the file and matrix processing was successful. False otherwise
   */
-bool fillMatrixFromFile(std::string path, std::vector< std::vector<int> > &matrix, std::string &x, std::string &y) {
+bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &x, std::string &y) {
   std::ios_base::sync_with_stdio (false);
 
   std::stringstream ss;
@@ -75,7 +83,7 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<int> > &matri
 
     ss << line;
 
-    int nLines, nCols;
+    unsigned short nLines, nCols;
 
     ss >> nLines >> nCols;
 
@@ -100,23 +108,23 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<int> > &matri
   }
 }
 
-void createMatrix(int l, int c, std::vector< std::vector<int> > &matrix) {
-  for (int i = 0; i < c; ++i) {
-    std::vector<int> column(l, 0);
+void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix) {
+  for (unsigned short i = 0; i < c; ++i) {
+    std::vector<unsigned short> column(l, 0);
     matrix.push_back(column);
   }
 }
 
-void processMatrix(std::vector< std::vector<int> > &matrix, std::string x, std::string y) {
-  int columns = matrix.size();
-  int lines = matrix[0].size();
+void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y) {
+  unsigned short columns = matrix.size();
+  unsigned short lines = matrix[0].size();
 
-  for(int i = 1; i < columns; i++) {
+  for(unsigned short i = 1; i < columns; i++) {
     //std::cout << "line:" << i << std::endl;
-    for (int j = 1; j < lines; j++) {
+    for (unsigned short j = 1; j < lines; j++) {
         //std::cout << "column:" << j << std::endl; 
       if(x[i-1] == y[j-1]) {
-       matrix[i][j] = matrix[i-1][j-1] + cost(i);
+       matrix[i][j] = matrix[i-1][j-1] + 1/*cost(i)*/;
      } else {
        matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
      }
@@ -124,39 +132,39 @@ void processMatrix(std::vector< std::vector<int> > &matrix, std::string x, std::
  }
 }
 
-std::string backtrack(std::vector< std::vector<int> > &matrix, std::string x, std::string y, int i, int j) {
+void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y, unsigned short i, unsigned short j, std::stringstream &ss) {
 
-  /*std::cout << "Position of matrix " << i << " " << j << std::endl;
-  std::cout << "Letter of X: " << x[i-1] << std::endl;
-  std::cout << "Letter of Y: " << y[j-1] << std::endl;*/
-
-  if(i==0 || j==0) {
-    return "" ;
-  } else if(x[i-1] == y[j-1]) {
-    return backtrack(matrix, x, y, i-1, j-1).append(std::string(1, x[i-1]));
-  } else {
-      if(matrix[i][j-1] < matrix[i-1][j]) {
-        return backtrack(matrix, x, y, i-1, j);
-      } else {
-        return backtrack(matrix, x, y, i, j-1);
+  while(i!=0 && j!=0){
+    if(x[i-1] == y[j-1]) {
+      ss << std::string(1, x[i-1]);
+      i--;
+      j--;
+    }
+    else{
+      if(matrix[i][j-1] < matrix[i-1][j]){
+        i--;
+      }
+      else{
+        j--;
       }
     }
+  }
 }
 
-void printMatrix(std::vector< std::vector<int> > &matrix) {
-  for (unsigned int i = 0; i < matrix.size(); ++i) {
-    std::vector<int> column = matrix[i];
-    for (unsigned int j = 0; j < column.size(); ++j) {
+void printMatrix(std::vector< std::vector<unsigned short> > &matrix) {
+  for (unsigned short i = 0; i < matrix.size(); ++i) {
+    std::vector<unsigned short> column = matrix[i];
+    for (unsigned short j = 0; j < column.size(); ++j) {
       std::cout << column[j] << " ";
     }
     std::cout << std::endl;
   }
 }
 
-short cost(int x) {
-  int i, n_iter = 20;
+unsigned short cost(unsigned short x) {
+  unsigned short i, n_iter = 20;
   double dcost = 0;
   for(i = 0; i < n_iter; i++)
     dcost += pow(sin((double) x),2) + pow(cos((double) x),2);
-  return (short) (dcost / n_iter + 0.1);
+  return (unsigned short) (dcost / n_iter + 0.1);
 }
