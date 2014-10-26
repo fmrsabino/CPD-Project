@@ -14,10 +14,9 @@
 
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &x, std::string &y);
 void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix);
-void processDiagonal(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
-void processDiagonal1(unsigned short line, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
+void processDiagonal1(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
 void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
-void processDiagonal3(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
+void processDiagonal3(unsigned short line, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
 void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
 void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y, unsigned short i, unsigned short j, std::stringstream &ss);
 void printMatrix(std::vector< std::vector<unsigned short> > &matrix);
@@ -105,10 +104,6 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned shor
 
     createMatrix(y.size()+1, x.size()+1, matrix);
     processMatrix(matrix, x, y);
-
-
-    std::cout << "Created Lines: " << matrix[0].size() << std::endl;
-    std::cout << "Created Columns: " << matrix.size() << std::endl;
     
     return true;
   } else {
@@ -180,8 +175,9 @@ void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned shor
     std::cout << "Line: " << line << " | Col: " << col << std::endl;
     std::cout << "X[] = " << x[col-1] << " | Y[] = " << y[line-1] << std::endl; 
     if(x[col-1] == y[line-1]) {
+      std::cout << "PRE_RESULT: " << matrix[col-1][line-1] + 1 << std::endl;
       matrix[col][line] = matrix[col-1][line-1] + 1;
-      std::cout << "RESULT = " << matrix[col][line] << std::endl;
+      std::cout << "RESULT: " << matrix[col][line] << std::endl;
     } else {
       matrix[col][line] = std::max(matrix[col][line-1], matrix[col-1][line]);
     }
