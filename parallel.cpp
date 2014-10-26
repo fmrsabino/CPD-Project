@@ -9,11 +9,14 @@
 #include <algorithm>
 
 //#define _DEBUG
-//#define _TESTDRIVE
-//#define _DUMP
+#define _DUMP
+
 
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &x, std::string &y);
 void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix);
+void processDiagonal1(unsigned short line, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
+void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
+void processDiagonal3(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
 void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
 void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y, unsigned short i, unsigned short j, std::stringstream &ss);
 void printMatrix(std::vector< std::vector<unsigned short> > &matrix);
@@ -37,7 +40,6 @@ int main(int argc, char* argv[]) {
 
   std::stringstream ss;    
 
-  #ifndef _TESTDRIVE
   if(fillMatrixFromFile(path, matrix, x, y)) {
     backtrack(matrix, x, y, x.size(), y.size(), ss);
     std::string result = ss.str();
@@ -45,25 +47,12 @@ int main(int argc, char* argv[]) {
     std::cout << result.size() << std::endl; 
     std::cout << result << std::endl;
   }
-  #endif
-
-  // Example:
-  #ifdef _TESTDRIVE
-  createMatrix(y.size()+1, x.size()+1, matrix);
-  processMatrix(matrix, x, y);
-  backtrack(matrix, x, y, x.size(), y.size(), ss);
-
-  std::string result = ss.str();
-  std::cout << result.size() << std::endl; 
-  std::cout << result << std::endl;
-  #endif
   
-  //Warning: printing to stdout may be slow
+
   #ifdef _DUMP
   printMatrix(matrix);
   #endif
 
-  //delete ss;
 
   return 0; 
 }
@@ -100,36 +89,98 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned shor
     std::cout << "Y: " << y << std::endl;
     #endif
 
-    createMatrix(y.size()+1, x.size()+1, matrix);
+    if (x.size() >= y.size()) {
+      createMatrix(y.size()+1, x.size()+1, matrix);
+    } else {
+      createMatrix(x.size()+1, y.size()+1, matrix);
+    }
+    
     processMatrix(matrix, x, y);
+    
     return true;
   } else {
     return false;
   }
 }
 
-void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix) {
-  for (unsigned short i = 0; i < c; ++i) {
-    std::vector<unsigned short> column(l, 0);
-    matrix.push_back(column);
-  }
+void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix) { 
+    #pragma omp parallel for
+    for (unsigned short i = 0; i < c; ++i) {
+      std::vector<unsigned short> column(l, 0);
+      #pragma omp critical
+        matrix.push_back(column);
+    }
 }
 
 void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y) {
   unsigned short columns = matrix.size();
   unsigned short lines = matrix[0].size();
 
-  for(unsigned short i = 1; i < columns; i++) {
-    //std::cout << "line:" << i << std::endl;
-    for (unsigned short j = 1; j < lines; j++) {
-        //std::cout << "column:" << j << std::endl; 
-      if(x[i-1] == y[j-1]) {
-       matrix[i][j] = matrix[i-1][j-1] + 1/*cost(i)*/;
+  for (unsigned short line = 1; line < lines; ++line) {
+    processDiagonal1(line, matrix, x, y);
+  }
+
+  unsigned short nIter = columns - lines;
+  unsigned short col;
+  for (col = 2; col <= 1 + nIter; ++col) {
+    processDiagonal2(col, matrix, x, y);
+  }
+
+  unsigned short nextCol = col + 1;
+  for (; nextCol < columns; nextCol++) {
+    processDiagonal3(nextCol, matrix, x, y);
+  }
+
+}
+
+// Como todas as matrizes são em largura (ou quadradas) o identificador de cada diagonal é a coluna
+
+// Numero de linhas menor que linhas max de matrix (incluindo  first Lmax)
+void processDiagonal1(unsigned short line, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y) {
+  
+  unsigned short col = 1;
+
+  while(line >= 0) {
+    if(x[col-1] == y[line-1]) {
+       matrix[col][line] = matrix[col-1][line-1] + cost(col);
+    } else {
+       matrix[col][line] = std::max(matrix[col][line-1], matrix[col-1][line]);
+    }
+    col++;
+    line--;
+  }
+
+  return;
+}
+
+// RECEBE COLUNA COMO IDENTIFICADOR DA DIAGONAL
+void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y) {
+  unsigned short line = matrix[0].size();
+
+    while(line >= 0) {
+      if(x[col-1] == y[line-1]) {
+         matrix[col][line] = matrix[col-1][line-1] + cost(col);
+       } else {
+         matrix[col][line] = std::max(matrix[col][line-1], matrix[col-1][line]);
+       }
+       col++;
+       line--;
+    }
+}
+
+// RECEBE COLUNA COMO IDENTIFICADOR DA DIAGONAL
+void processDiagonal3(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y) {
+  unsigned short line = matrix[0].size();
+
+  while(col <= matrix.size()) {
+    if(x[col-1] == y[line-1]) {
+       matrix[col][line] = matrix[col-1][line-1] + cost(col);
      } else {
-       matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
+       matrix[col][line] = std::max(matrix[col][line-1], matrix[col-1][line]);
      }
-   }
- }
+     col++;
+     line--;
+  }
 }
 
 void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y, unsigned short i, unsigned short j, std::stringstream &ss) {
