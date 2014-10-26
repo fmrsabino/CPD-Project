@@ -61,7 +61,7 @@ int main(int argc, char* argv[]) {
   * Returns true if the file and matrix processing was successful. False otherwise
   */
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &x, std::string &y) {
-  std::ios_base::sync_with_stdio (false);
+  //std::ios_base::sync_with_stdio (false);
 
   std::stringstream ss;
   std::ifstream file (path.c_str(), std::ifstream::in);
@@ -112,10 +112,10 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned shor
 }
 
 void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix) { 
-    #pragma omp parallel for
-    for (unsigned short i = 0; i < c; ++i) {
+    //#pragma omp parallel for
+    for (unsigned short i = 0; i < c; i++) {
       std::vector<unsigned short> column(l, 0);
-      #pragma omp critical
+      //#pragma omp critical
         matrix.push_back(column);
     }
 }
