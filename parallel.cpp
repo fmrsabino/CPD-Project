@@ -8,12 +8,13 @@
 #include <stdlib.h>
 #include <algorithm>
 
-//#define _DEBUG
+#define _DEBUG
 #define _DUMP
 
 
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &x, std::string &y);
 void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix);
+void processDiagonal(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
 void processDiagonal1(unsigned short line, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
 void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
 void processDiagonal3(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
@@ -35,8 +36,8 @@ int main(int argc, char* argv[]) {
 
 
   std::vector< std::vector<unsigned short> > matrix;
-  std::string x = "ABCBDAB";
-  std::string y = "BDCABA";
+  std::string x = "";
+  std::string y = "";
 
   std::stringstream ss;    
 
@@ -80,22 +81,34 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned shor
     std::cout << "Number of lines: " << nLines << std::endl;
     std::cout << "Number of cols: " << nCols << std::endl;
     #endif
-    
-    std::getline(file, x);
-    std::getline(file, y);
+
+
+    std::string string1;
+    std::string string2;
+
+    std::getline(file, string1);
+    std::getline(file, string2);
+
+    if (string1.size() >= string2.size()) {
+      x = string1;
+      y = string2;
+    } else {
+      y = string1;
+      x = string2;
+    }
 
     #ifdef _DEBUG
     std::cout << "X: " << x << std::endl;
     std::cout << "Y: " << y << std::endl;
     #endif
 
-    if (x.size() >= y.size()) {
-      createMatrix(y.size()+1, x.size()+1, matrix);
-    } else {
-      createMatrix(x.size()+1, y.size()+1, matrix);
-    }
-    
+
+    createMatrix(y.size()+1, x.size()+1, matrix);
     processMatrix(matrix, x, y);
+
+
+    std::cout << "Created Lines: " << matrix[0].size() << std::endl;
+    std::cout << "Created Columns: " << matrix.size() << std::endl;
     
     return true;
   } else {
@@ -116,22 +129,28 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   unsigned short columns = matrix.size();
   unsigned short lines = matrix[0].size();
 
-  for (unsigned short line = 1; line < lines; ++line) {
-    processDiagonal1(line, matrix, x, y);
+  for (unsigned short col = 1; col < columns; ++col) {
+    processDiagonal1(col, matrix, x, y);
   }
 
-  unsigned short nIter = columns - lines;
-  unsigned short col;
-  for (col = 2; col <= 1 + nIter; ++col) {
-    processDiagonal2(col, matrix, x, y);
-  }
+  unsigned short col = 1;
 
-  unsigned short nextCol = col + 1;
-  for (; nextCol < columns; nextCol++) {
-    processDiagonal3(nextCol, matrix, x, y);
+  //This step is only needed if the matrix is not square
+  if (x.size() != y.size()) {
+    unsigned short nIter = columns - lines;
+    for (col = 1; col <= nIter; ++col) {
+      std::cout << "========= START DIAGONAL =========" << std::endl;
+      processDiagonal2(col, matrix, x, y);
+      std::cout << "========= END DIAGONAL =========" << std::endl;
+    }
   }
-
+  
+  for (unsigned short line = 1; line < lines; line++) {
+    processDiagonal3(line, matrix, x, y);
+  }
 }
+
+
 
 // Como todas as matrizes são em largura (ou quadradas) o identificador de cada diagonal é a coluna
 
@@ -140,9 +159,9 @@ void processDiagonal1(unsigned short line, std::vector< std::vector<unsigned sho
   
   unsigned short col = 1;
 
-  while(line >= 0) {
+  while(line >= 1) {
     if(x[col-1] == y[line-1]) {
-       matrix[col][line] = matrix[col-1][line-1] + cost(col);
+       matrix[col][line] = matrix[col-1][line-1] + 1;
     } else {
        matrix[col][line] = std::max(matrix[col][line-1], matrix[col-1][line]);
     }
@@ -155,31 +174,39 @@ void processDiagonal1(unsigned short line, std::vector< std::vector<unsigned sho
 
 // RECEBE COLUNA COMO IDENTIFICADOR DA DIAGONAL
 void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y) {
-  unsigned short line = matrix[0].size();
+  unsigned short line = matrix[0].size() - 1;
 
-    while(line >= 0) {
-      if(x[col-1] == y[line-1]) {
-         matrix[col][line] = matrix[col-1][line-1] + cost(col);
-       } else {
-         matrix[col][line] = std::max(matrix[col][line-1], matrix[col-1][line]);
-       }
-       col++;
-       line--;
+  while(line >= 1) {
+    std::cout << "Line: " << line << " | Col: " << col << std::endl;
+    std::cout << "X[] = " << x[col-1] << " | Y[] = " << y[line-1] << std::endl; 
+    if(x[col-1] == y[line-1]) {
+      matrix[col][line] = matrix[col-1][line-1] + 1;
+      std::cout << "RESULT = " << matrix[col][line] << std::endl;
+    } else {
+      matrix[col][line] = std::max(matrix[col][line-1], matrix[col-1][line]);
     }
+    col++;
+    line--;
+  }
 }
 
-// RECEBE COLUNA COMO IDENTIFICADOR DA DIAGONAL
-void processDiagonal3(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y) {
-  unsigned short line = matrix[0].size();
+// RECEBE LINHA COMO IDENTIFICADOR DA DIAGONAL
+void processDiagonal3(unsigned short line, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y) {
+  unsigned short maxLine = matrix[0].size();
+  unsigned short col = matrix.size() - 1;
+  
+  if (line == 0) {
+    return;
+  }
 
-  while(col <= matrix.size()) {
+  while(line <= maxLine) {
     if(x[col-1] == y[line-1]) {
        matrix[col][line] = matrix[col-1][line-1] + cost(col);
      } else {
        matrix[col][line] = std::max(matrix[col][line-1], matrix[col-1][line]);
      }
-     col++;
-     line--;
+     col--;
+     line++;
   }
 }
 
@@ -203,10 +230,9 @@ void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string x
 }
 
 void printMatrix(std::vector< std::vector<unsigned short> > &matrix) {
-  for (unsigned short i = 0; i < matrix.size(); ++i) {
-    std::vector<unsigned short> column = matrix[i];
-    for (unsigned short j = 0; j < column.size(); ++j) {
-      std::cout << column[j] << " ";
+  for (unsigned short i = 0; i < matrix[i].size(); ++i) {
+    for (unsigned short j = 0; j < matrix.size(); ++j) {
+      std::cout << matrix[i][j] << " ";
     }
     std::cout << std::endl;
   }
