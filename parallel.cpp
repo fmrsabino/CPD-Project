@@ -8,8 +8,8 @@
 #include <stdlib.h>
 #include <algorithm>
 
-#define _DEBUG
-#define _DUMP
+//#define _DEBUG
+//#define _DUMP
 
 
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &x, std::string &y);
@@ -50,7 +50,7 @@ int main(int argc, char* argv[]) {
   
 
   #ifdef _DUMP
-  //printMatrix(matrix);
+  printMatrix(matrix);
   #endif
 
 
@@ -97,8 +97,8 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned shor
     }
 
     #ifdef _DEBUG
-    //std::cout << "X: " << x << std::endl;
-    //std::cout << "Y: " << y << std::endl;
+    std::cout << "X: " << x << std::endl;
+    std::cout << "Y: " << y << std::endl;
     #endif
 
 
@@ -124,8 +124,8 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   unsigned short columns = matrix.size();
   unsigned short lines = matrix[0].size();
 
-  for (unsigned short col = 1; col < columns; ++col) {
-    processDiagonal1(col, matrix, x, y);
+  for (unsigned short line = 1; line < lines; ++line) {
+    processDiagonal1(line, matrix, x, y);
   }
 
   unsigned short col = 1;
@@ -134,9 +134,7 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   if (x.size() != y.size()) {
     unsigned short nIter = columns - lines;
     for (col = 1; col <= nIter; ++col) {
-      //std::cout << "========= START DIAGONAL =========" << std::endl;
       processDiagonal2(col, matrix, x, y);
-      //std::cout << "========= END DIAGONAL =========" << std::endl;
     }
   }
   
@@ -172,12 +170,8 @@ void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned shor
   unsigned short line = matrix[0].size() - 1;
 
   while(line >= 1) {
-    //std::cout << "Line: " << line << " | Col: " << col << std::endl;
-    //std::cout << "X[] = " << x[col-1] << " | Y[] = " << y[line-1] << std::endl; 
     if(x[col-1] == y[line-1]) {
-      //std::cout << "PRE_RESULT: " << matrix[col-1][line-1] + 1 << std::endl;
       matrix[col][line] = matrix[col-1][line-1] + 1;
-      //std::cout << "RESULT: " << matrix[col][line] << std::endl;
     } else {
       matrix[col][line] = std::max(matrix[col][line-1], matrix[col-1][line]);
     }
@@ -226,9 +220,9 @@ void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string x
 }
 
 void printMatrix(std::vector< std::vector<unsigned short> > &matrix) {
-  for (unsigned short i = 0; i < matrix[i].size(); ++i) {
-    for (unsigned short j = 0; j < matrix.size(); ++j) {
-      std::cout << matrix[i][j] << " ";
+  for (unsigned short i = 0; i < matrix[i].size(); i++) {
+    for (unsigned short j = 0; j < matrix.size(); j++) {
+      std::cout << matrix[j][i] << " ";
     }
     std::cout << std::endl;
   }
