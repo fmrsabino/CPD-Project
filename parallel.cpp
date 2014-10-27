@@ -12,15 +12,15 @@
 //#define _DUMP
 
 
-bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &x, std::string &y);
+bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
 void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix);
-void processDiagonal1(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
-void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
-void processDiagonal3(unsigned short line, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
-void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y);
-void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y, unsigned short i, unsigned short j, std::stringstream &ss);
+void processDiagonal1(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines);
+void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines);
+void processDiagonal3(unsigned short line, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines);
+void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines);
+void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines, unsigned short i, unsigned short j, std::stringstream &ss);
 void printMatrix(std::vector< std::vector<unsigned short> > &matrix);
-unsigned short cost(unsigned short x);
+unsigned short cost(unsigned short cols);
 
 
 int main(int argc, char* argv[]) {
@@ -35,13 +35,13 @@ int main(int argc, char* argv[]) {
 
 
   std::vector< std::vector<unsigned short> > matrix;
-  std::string x = "";
-  std::string y = "";
+  std::string lines = "";
+  std::string cols = "";
 
   std::stringstream ss;    
 
-  if(fillMatrixFromFile(path, matrix, x, y)) {
-    backtrack(matrix, x, y, x.size(), y.size(), ss);
+  if(fillMatrixFromFile(path, matrix, lines, cols)) {
+    backtrack(matrix, lines, cols, lines.size(), cols.size(), ss);
     std::string result = ss.str();
     std::reverse(result.begin(), result.end());
     std::cout << result.size() << std::endl; 
@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
 /**
   * Returns true if the file and matrix processing was successful. False otherwise
   */
-bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &x, std::string &y) {
+bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols) {
   //std::ios_base::sync_with_stdio (false);
 
   std::stringstream ss;
@@ -82,28 +82,18 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned shor
     #endif
 
 
-    std::string string1;
-    std::string string2;
+    std::getline(file, lines);
+    std::getline(file, cols);
 
-    std::getline(file, string1);
-    std::getline(file, string2);
-
-    if (string1.size() >= string2.size()) {
-      x = string1;
-      y = string2;
-    } else {
-      y = string1;
-      x = string2;
-    }
 
     #ifdef _DEBUG
-    std::cout << "X: " << x << std::endl;
-    std::cout << "Y: " << y << std::endl;
+    std::cout << "Lines: " << lines << std::endl;
+    std::cout << "Cols: " << cols << std::endl;
     #endif
 
 
-    createMatrix(y.size()+1, x.size()+1, matrix);
-    processMatrix(matrix, x, y);
+    createMatrix(lines.size()+1, cols.size()+1, matrix);
+    processMatrix(matrix, cols, lines);
     
     return true;
   } else {
@@ -112,34 +102,37 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned shor
 }
 
 void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix) { 
-    //#pragma omp parallel for
-    for (unsigned short i = 0; i < c; i++) {
-      std::vector<unsigned short> column(l, 0);
-      //#pragma omp critical
+    #pragma omp parallel for
+    for (unsigned short i = 0; i < l; i++) {
+      std::vector<unsigned short> column(c, 0);
+      #pragma omp critical
         matrix.push_back(column);
     }
 }
 
-void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y) {
-  unsigned short columns = matrix.size();
-  unsigned short lines = matrix[0].size();
+void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines) {
 
-  for (unsigned short line = 1; line < lines; ++line) {
-    processDiagonal1(line, matrix, x, y);
+  for (unsigned short line = 1; line < matrix.size()-1; ++line) {
+    processDiagonal1(line, matrix, cols, lines);
   }
-
+  unsigned short line = 1;
   unsigned short col = 1;
 
   //This step is only needed if the matrix is not square
-  if (x.size() != y.size()) {
-    unsigned short nIter = columns - lines;
+  if (matrix.size() < matrix[0].size()) {
+    unsigned short nIter = matrix[0].size() - matrix.size();
     for (col = 1; col <= nIter; ++col) {
-      processDiagonal2(col, matrix, x, y);
+      processDiagonal2(col, matrix, cols, lines);
     }
   }
   
-  for (unsigned short line = 1; line < lines; line++) {
-    processDiagonal3(line, matrix, x, y);
+
+  if (matrix.size() > matrix[0].size()) {
+    line = matrix.size() - matrix[0].size() +1; 
+  }
+
+  for (; line < matrix.size(); line++) {
+    processDiagonal3(line, matrix, cols, lines);
   }
 }
 
@@ -148,32 +141,32 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
 // Como todas as matrizes são em largura (ou quadradas) o identificador de cada diagonal é a coluna
 
 // Numero de linhas menor que linhas max de matrix (incluindo  first Lmax)
-void processDiagonal1(unsigned short line, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y) {
+void processDiagonal1(unsigned short line, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines) {
   
   unsigned short col = 1;
 
   while(line >= 1) {
-    if(x[col-1] == y[line-1]) {
-       matrix[col][line] = matrix[col-1][line-1] + 1;
+    if(cols[col-1] == lines[line-1]) {
+       matrix[line][col] = matrix[line-1][col-1] + 1;
     } else {
-       matrix[col][line] = std::max(matrix[col][line-1], matrix[col-1][line]);
+       matrix[line][col] = std::max(matrix[line][col-1], matrix[line-1][col]);
     }
-    col++;
+
+    if(col < cols.size())
+      col++;
     line--;
   }
-
-  return;
 }
 
 // RECEBE COLUNA COMO IDENTIFICADOR DA DIAGONAL
-void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y) {
-  unsigned short line = matrix[0].size() - 1;
+void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines) {
+  unsigned short line = matrix.size() - 1;
 
   while(line >= 1) {
-    if(x[col-1] == y[line-1]) {
-      matrix[col][line] = matrix[col-1][line-1] + 1;
+    if(cols[col-1] == lines[line-1]) {
+      matrix[line][col] = matrix[line-1][col-1] + 1;
     } else {
-      matrix[col][line] = std::max(matrix[col][line-1], matrix[col-1][line]);
+      matrix[line][col] = std::max(matrix[line][col-1], matrix[line-1][col]);
     }
     col++;
     line--;
@@ -181,30 +174,29 @@ void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned shor
 }
 
 // RECEBE LINHA COMO IDENTIFICADOR DA DIAGONAL
-void processDiagonal3(unsigned short line, std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y) {
-  unsigned short maxLine = matrix[0].size();
-  unsigned short col = matrix.size() - 1;
+void processDiagonal3(unsigned short line, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines) {
+  unsigned short maxLine = matrix.size();
+  unsigned short col = matrix[0].size() - 1;
   
   if (line == 0) {
     return;
   }
 
   while(line < maxLine) {
-    if(x[col-1] == y[line-1]) {
-       matrix[col][line] = matrix[col-1][line-1] + cost(col);
+    if(cols[col-1] == lines[line-1]) {
+       matrix[line][col] = matrix[line-1][col-1] + 1;
      } else {
-       matrix[col][line] = std::max(matrix[col][line-1], matrix[col-1][line]);
+       matrix[line][col] = std::max(matrix[line][col-1], matrix[line-1][col]);
      }
      col--;
      line++;
   }
 }
 
-void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string x, std::string y, unsigned short i, unsigned short j, std::stringstream &ss) {
-
+void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string lines, std::string cols, unsigned short i, unsigned short j, std::stringstream &ss) {
   while(i!=0 && j!=0){
-    if(x[i-1] == y[j-1]) {
-      ss << std::string(1, x[i-1]);
+    if(cols[j-1] == lines[i-1]) {
+      ss << std::string(1, cols[j-1]);
       i--;
       j--;
     }
@@ -220,18 +212,18 @@ void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string x
 }
 
 void printMatrix(std::vector< std::vector<unsigned short> > &matrix) {
-  for (unsigned short i = 0; i < matrix[i].size(); i++) {
-    for (unsigned short j = 0; j < matrix.size(); j++) {
-      std::cout << matrix[j][i] << " ";
+  for (unsigned short i = 0; i < matrix.size(); i++) {
+    for (unsigned short j = 0; j < matrix[i].size(); j++) {
+      std::cout << matrix[i][j] << " ";
     }
     std::cout << std::endl;
   }
 }
 
-unsigned short cost(unsigned short x) {
+unsigned short cost(unsigned short cols) {
   unsigned short i, n_iter = 20;
   double dcost = 0;
   for(i = 0; i < n_iter; i++)
-    dcost += pow(sin((double) x),2) + pow(cos((double) x),2);
+    dcost += pow(sin((double) cols),2) + pow(cos((double) cols),2);
   return (unsigned short) (dcost / n_iter + 0.1);
 }
