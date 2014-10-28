@@ -124,7 +124,7 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
     for (unsigned short j = 1; j < lines; j++) {
         //std::cout << "column:" << j << std::endl; 
       if(x[i-1] == y[j-1]) {
-       matrix[i][j] = matrix[i-1][j-1] + 1/*cost(i)*/;
+       matrix[i][j] = matrix[i-1][j-1] + cost(i);
      } else {
        matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
      }
