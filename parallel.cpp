@@ -9,20 +9,12 @@
 #include <omp.h>
 #include <algorithm>
 
-//#define _DEBUG
-//#define _DUMP
-
-
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
 void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix);
-void processDiagonal1(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines);
-void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines);
-void processDiagonal3(unsigned short &line, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines);
 void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
-void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines, unsigned short i, unsigned short j, std::stringstream &ss);
+void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, unsigned short i, unsigned short j, std::stringstream &ss);
 void printMatrix(std::vector< std::vector<unsigned short> > &matrix);
 unsigned short cost(unsigned short cols);
-
 
 int main(int argc, char* argv[]) {
 
@@ -35,7 +27,6 @@ int main(int argc, char* argv[]) {
 
   std::string path("test-files/");
   path+= argv[1];
-
 
   std::vector< std::vector<unsigned short> > matrix;
   std::string lines = "";
@@ -50,11 +41,10 @@ int main(int argc, char* argv[]) {
     std::cout << result.size() << std::endl; 
     std::cout << result << std::endl;
   }
-  
-
-  #ifdef _DUMP
-  printMatrix(matrix);
-  #endif
+  else {
+    std::cout << "Error opening file" << std::endl;
+    exit(EXIT_FAILURE);
+  }
 
   double end = omp_get_wtime();
   std::cout << "time: " << end-start << std::endl;
@@ -62,9 +52,7 @@ int main(int argc, char* argv[]) {
   return 0; 
 }
 
-/**
-  * Returns true if the file and matrix processing was successful. False otherwise
-  */
+
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols) {
   std::ios_base::sync_with_stdio (false);
 
@@ -76,26 +64,11 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned shor
     std::getline(file, line);
 
     ss << line;
-
     unsigned short nLines, nCols;
-
     ss >> nLines >> nCols;
-
-    #ifdef _DEBUG
-    std::cout << "Number of lines: " << nLines << std::endl;
-    std::cout << "Number of cols: " << nCols << std::endl;
-    #endif
-
 
     std::getline(file, lines);
     std::getline(file, cols);
-
-
-    #ifdef _DEBUG
-    std::cout << "Lines: " << lines << std::endl;
-    std::cout << "Cols: " << cols << std::endl;
-    #endif
-
 
     createMatrix(lines.size()+1, cols.size()+1, matrix);
     processMatrix(matrix, cols, lines);
@@ -107,69 +80,68 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned shor
 }
 
 void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix) { 
-    #pragma omp parallel for
-    for (unsigned short i = 0; i < l; i++) {
-      std::vector<unsigned short> column(c, 0);
-      #pragma omp critical
-        matrix.push_back(column);
-    }
+  #pragma omp parallel for
+  for (unsigned short i = 0; i < l; i++) {
+    std::vector<unsigned short> column(c, 0);
+    #pragma omp critical
+      matrix.push_back(column);
+  }
 }
 
 void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines) {
+  unsigned short nLines = matrix.size();
+  unsigned short nCols = matrix[0].size();
 
   #pragma omp parallel
   {
-    for (unsigned short line_arg = 1; line_arg < matrix.size(); line_arg++) {
+    for (unsigned short lineFor = 1; lineFor < nLines; lineFor++) {
       unsigned short col;
   
       #pragma omp for private(col)
-      for(unsigned short line = line_arg; line >= 1; line--){
-        col = line_arg - line + 1;
-        if(col > matrix[0].size()-1)
-          col = matrix[0].size() - 1;
+      for(unsigned short line = lineFor; line >= 1; line--){
+        col = lineFor - line + 1;
+        if(col > nCols-1) {
+          col = nCols - 1;
+        }
 
         if(cols[col-1] == lines[line-1]) {
-          matrix[line][col] = matrix[line-1][col-1] + cost(line_arg);
+          matrix[line][col] = matrix[line-1][col-1] + cost(lineFor);
         } else {
            matrix[line][col] = std::max(matrix[line][col-1], matrix[line-1][col]);
         }
       }
     }
   
-
-    unsigned short line_2 = 1;
+    unsigned short lineFix = 1;
     unsigned short col = 1;
 
-    if (matrix.size() < matrix[0].size()) {
-      unsigned short nIter = matrix[0].size() - matrix.size();
+    if (nLines < nCols) {
+      unsigned short nIter = nCols - nLines;
       for (col = 1; col <= nIter; ++col) {
-        unsigned short col2 = col;
+        unsigned short colFix = col;
 
-        #pragma omp for private(col2)
-        for(unsigned short line = matrix.size() - 1; line >= 1; line--) {
-          col2 = matrix.size() - line + col;
-          if(cols[col2-1] == lines[line-1]) {
-            matrix[line][col2] = matrix[line-1][col2-1] + cost(line);
+        #pragma omp for private(colFix)
+        for(unsigned short line = nLines - 1; line >= 1; line--) {
+          colFix = nLines - line + col;
+          if(cols[colFix-1] == lines[line-1]) {
+            matrix[line][colFix] = matrix[line-1][colFix-1] + cost(line);
           } else {
-            matrix[line][col2] = std::max(matrix[line][col2-1], matrix[line-1][col2]);
+            matrix[line][colFix] = std::max(matrix[line][colFix-1], matrix[line-1][colFix]);
           }
         }
       }
-    }
-  
-
-    if (matrix.size() > matrix[0].size()) {
-      line_2 = matrix.size() - matrix[0].size() +1; 
+    }else {
+      lineFix = nLines - nCols +1; 
     }
 
-    for (unsigned short line_arg = line_2; line_arg < matrix.size(); ++line_arg) {
+    for (unsigned short lineFor = lineFix; lineFor < nLines; ++lineFor) {
       unsigned short col;
 
       #pragma omp for private(col)
-      for(unsigned short line = line_arg; line < matrix.size(); line++) {
-        col = matrix[0].size() - (line - line_arg) -1;
+      for(unsigned short line = lineFor; line < nLines; line++) {
+        col = nCols - (line - lineFor) -1;
         if(cols[col-1] == lines[line-1]) {
-           matrix[line][col] = matrix[line-1][col-1] + cost(line_arg);
+           matrix[line][col] = matrix[line-1][col-1] + cost(lineFor);
          } else {
            matrix[line][col] = std::max(matrix[line][col-1], matrix[line-1][col]);
          }
@@ -178,7 +150,7 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   }
 }
 
-void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string lines, std::string cols, unsigned short i, unsigned short j, std::stringstream &ss) {
+void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short i, unsigned short j, std::stringstream &ss) {
   while(i!=0 && j!=0){
     if(cols[j-1] == lines[i-1]) {
       ss << std::string(1, cols[j-1]);
