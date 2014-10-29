@@ -18,7 +18,7 @@ void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<u
 void processDiagonal1(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines);
 void processDiagonal2(unsigned short col, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines);
 void processDiagonal3(unsigned short &line, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines);
-void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines);
+void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
 void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines, unsigned short i, unsigned short j, std::stringstream &ss);
 void printMatrix(std::vector< std::vector<unsigned short> > &matrix);
 unsigned short cost(unsigned short cols);
@@ -115,91 +115,66 @@ void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<u
     }
 }
 
-void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines) {
+void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines) {
 
-  for (unsigned short line = 1; line < matrix.size(); ++line) {
-    processDiagonal1(line, matrix, cols, lines);
-  }
+  #pragma omp parallel
+  {
+    for (unsigned short line_arg = 1; line_arg < matrix.size(); line_arg++) {
+      unsigned short col;
+  
+      #pragma omp for private(col)
+      for(unsigned short line = line_arg; line >= 1; line--){
+        col = line_arg - line + 1;
+        if(col > matrix[0].size()-1)
+          col = matrix[0].size() - 1;
 
-  unsigned short line = 1;
-  unsigned short col = 1;
-
-  if (matrix.size() < matrix[0].size()) {
-    unsigned short nIter = matrix[0].size() - matrix.size();
-    for (col = 1; col <= nIter; ++col) {
-      processDiagonal2(col, matrix, cols, lines);
+        if(cols[col-1] == lines[line-1]) {
+          matrix[line][col] = matrix[line-1][col-1] + cost(line_arg);
+        } else {
+           matrix[line][col] = std::max(matrix[line][col-1], matrix[line-1][col]);
+        }
+      }
     }
-  }
   
 
-  if (matrix.size() > matrix[0].size()) {
-    line = matrix.size() - matrix[0].size() +1; 
-  }
+    unsigned short line_2 = 1;
+    unsigned short col = 1;
 
-  for (; line < matrix.size(); line++) {
-    processDiagonal3(line, matrix, cols, lines);
-  }
-}
+    if (matrix.size() < matrix[0].size()) {
+      unsigned short nIter = matrix[0].size() - matrix.size();
+      for (col = 1; col <= nIter; ++col) {
+        unsigned short col2 = col;
 
-
-void processDiagonal1(unsigned short line_arg, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines) {
-
-  unsigned short col;
-  
-  #pragma omp parallel for private(col)
-  for(unsigned short line = line_arg; line >= 1; line--){
-    std::string colS = cols;
-    std::string lineS = lines;
-    if(line > matrix[0].size())
-      col = matrix[0].size();
-    else col = line_arg - line + 1;
-
-    if(colS[col-1] == lineS[line-1]) {
-      matrix[line][col] = matrix[line-1][col-1] + cost(col);
-    } else {
-       matrix[line][col] = std::max(matrix[line][col-1], matrix[line-1][col]);
+        #pragma omp for private(col2)
+        for(unsigned short line = matrix.size() - 1; line >= 1; line--) {
+          col2 = matrix.size() - line + col;
+          if(cols[col2-1] == lines[line-1]) {
+            matrix[line][col2] = matrix[line-1][col2-1] + cost(line);
+          } else {
+            matrix[line][col2] = std::max(matrix[line][col2-1], matrix[line-1][col2]);
+          }
+        }
+      }
     }
-  }
-}
-
-// RECEBE COLUNA COMO IDENTIFICADOR DA DIAGONAL
-void processDiagonal2(unsigned short col_arg, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines) {
-  unsigned short line;
-  unsigned short col = col_arg;
-
-  #pragma omp parallel for firstprivate(col)
-  for(line = matrix.size() - 1; line >= 1; line--) {
-    col = matrix.size() - line + col_arg;
-    std::string colS = cols;
-    std::string lineS = lines;
-    if(colS[col-1] == lineS[line-1]) {
-      matrix[line][col] = matrix[line-1][col-1] + cost(col);
-    } else {
-      matrix[line][col] = std::max(matrix[line][col-1], matrix[line-1][col]);
-    }
-  }
-}
-
-// RECEBE LINHA COMO IDENTIFICADOR DA DIAGONAL
-void processDiagonal3(unsigned short &line_arg, std::vector< std::vector<unsigned short> > &matrix, std::string cols, std::string lines) {
-  unsigned short maxLine = matrix.size();
-  unsigned short line;
-  unsigned short col;
   
-  if (line_arg == 0) {
-    return;
-  }
 
-  #pragma omp parallel for private(col)
-  for(line = line_arg; line < maxLine; line++){
-    col = matrix[0].size() - (line - line_arg) -1;
-    std::string colS = cols;
-    std::string lineS = lines;
-    if(colS[col-1] == lineS[line-1]) {
-       matrix[line][col] = matrix[line-1][col-1] + cost(col);
-     } else {
-       matrix[line][col] = std::max(matrix[line][col-1], matrix[line-1][col]);
-     }
+    if (matrix.size() > matrix[0].size()) {
+      line_2 = matrix.size() - matrix[0].size() +1; 
+    }
+
+    for (unsigned short line_arg = line_2; line_arg < matrix.size(); ++line_arg) {
+      unsigned short col;
+
+      #pragma omp for private(col)
+      for(unsigned short line = line_arg; line < matrix.size(); line++) {
+        col = matrix[0].size() - (line - line_arg) -1;
+        if(cols[col-1] == lines[line-1]) {
+           matrix[line][col] = matrix[line-1][col-1] + cost(line_arg);
+         } else {
+           matrix[line][col] = std::max(matrix[line][col-1], matrix[line-1][col]);
+         }
+      }
+    }  
   }
 }
 
