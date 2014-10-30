@@ -97,8 +97,8 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
     for (unsigned short lineFor = 1; lineFor < nLines; lineFor++) {
       unsigned short col;
   
-      #pragma omp for private(col)
-      for(unsigned short line = lineFor; line >= 1; line--){
+      #pragma omp for schedule(guided) private(col)
+      for(int line = lineFor; line >= 1; line--){
         col = lineFor - line + 1;
         if(col > nCols-1) {
           col = nCols - 1;
@@ -120,8 +120,8 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
       for (col = 1; col <= nIter; ++col) {
         unsigned short colFix = col;
 
-        #pragma omp for private(colFix)
-        for(unsigned short line = nLines - 1; line >= 1; line--) {
+        #pragma omp for schedule(guided) private(colFix)
+        for(int line = nLines - 1; line >= 1; line--) {
           colFix = nLines - line + col;
           if(cols[colFix-1] == lines[line-1]) {
             matrix[line][colFix] = matrix[line-1][colFix-1] + cost(line);
@@ -137,8 +137,8 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
     for (unsigned short lineFor = lineFix; lineFor < nLines; ++lineFor) {
       unsigned short col;
 
-      #pragma omp for private(col)
-      for(unsigned short line = lineFor; line < nLines; line++) {
+      #pragma omp for schedule(guided) private(col)
+      for(int line = lineFor; line < nLines; line++) {
         col = nCols - (line - lineFor) -1;
         if(cols[col-1] == lines[line-1]) {
            matrix[line][col] = matrix[line-1][col-1] + cost(lineFor);
