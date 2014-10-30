@@ -8,9 +8,6 @@
 #include <stdlib.h>
 #include <algorithm>
 
-//#define _DEBUG
-//#define _TESTDRIVE
-//#define _DUMP
 
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &x, std::string &y);
 void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix);
@@ -27,7 +24,7 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  std::string path("test-files/");
+  std::string path("");
   path+= argv[1];
 
 
@@ -37,7 +34,6 @@ int main(int argc, char* argv[]) {
 
   std::stringstream ss;    
 
-  #ifndef _TESTDRIVE
   if(fillMatrixFromFile(path, matrix, x, y)) {
     backtrack(matrix, x, y, x.size(), y.size(), ss);
     std::string result = ss.str();
@@ -45,25 +41,11 @@ int main(int argc, char* argv[]) {
     std::cout << result.size() << std::endl; 
     std::cout << result << std::endl;
   }
-  #endif
+  else{
+    std::cout << "Error opening file" << std::endl;
+    exit(EXIT_FAILURE);
+  }
 
-  // Example:
-  #ifdef _TESTDRIVE
-  createMatrix(y.size()+1, x.size()+1, matrix);
-  processMatrix(matrix, x, y);
-  backtrack(matrix, x, y, x.size(), y.size(), ss);
-
-  std::string result = ss.str();
-  std::cout << result.size() << std::endl; 
-  std::cout << result << std::endl;
-  #endif
-  
-  //Warning: printing to stdout may be slow
-  #ifdef _DUMP
-  printMatrix(matrix);
-  #endif
-
-  //delete ss;
 
   return 0; 
 }
@@ -87,18 +69,10 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned shor
 
     ss >> nLines >> nCols;
 
-    #ifdef _DEBUG
-    std::cout << "Number of lines: " << nLines << std::endl;
-    std::cout << "Number of cols: " << nCols << std::endl;
-    #endif
     
     std::getline(file, x);
     std::getline(file, y);
 
-    #ifdef _DEBUG
-    std::cout << "X: " << x << std::endl;
-    std::cout << "Y: " << y << std::endl;
-    #endif
 
     createMatrix(y.size()+1, x.size()+1, matrix);
     processMatrix(matrix, x, y);
@@ -120,9 +94,9 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   unsigned short lines = matrix[0].size();
 
   for(unsigned short i = 1; i < columns; i++) {
-    //std::cout << "line:" << i << std::endl;
+
     for (unsigned short j = 1; j < lines; j++) {
-        //std::cout << "column:" << j << std::endl; 
+
       if(x[i-1] == y[j-1]) {
        matrix[i][j] = matrix[i-1][j-1] + cost(i);
      } else {
