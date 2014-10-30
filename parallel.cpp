@@ -25,8 +25,8 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  std::string path("test-files/");
-  path+= argv[1];
+  std::string path = argv[1];
+
 
   std::vector< std::vector<unsigned short> > matrix;
   std::string lines = "";
