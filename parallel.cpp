@@ -3,10 +3,8 @@
 #include <fstream>
 #include <math.h>
 #include <string>
-#include <fstream>
 #include <sstream> 
 #include <stdlib.h>
-#include <omp.h>
 #include <algorithm>
 
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
@@ -18,7 +16,6 @@ unsigned short cost(unsigned short cols);
 
 int main(int argc, char* argv[]) {
 
-  double start = omp_get_wtime();
 
   if(argc != 2){
     std::cout << "Exactly one input parameter is allowed. This should be the name of the input file present in public-instances." << std::endl;
@@ -45,9 +42,6 @@ int main(int argc, char* argv[]) {
     std::cout << "Error opening file" << std::endl;
     exit(EXIT_FAILURE);
   }
-
-  double end = omp_get_wtime();
-  std::cout << "time: " << end-start << std::endl;
 
   return 0; 
 }
