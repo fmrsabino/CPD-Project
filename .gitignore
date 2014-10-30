@@ -26,5 +26,6 @@
 *.exe
 *.app
 
-parallel
-serial
+lcs-serial
+lcs-omp
+lcs-omp-functions
