@@ -91,17 +91,15 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   MPI_Comm_size (MPI_COMM_WORLD, &p);
 
   float division = nCols/p;
-  int counter = 0;
-  while (division != (int)division) {
-    counter++;
-    division--;
-  }
+  size_t remainder = nCols % p;
+
+  std::cout << "Remainder: " << remainder << std::endl;
 
   unsigned short startCol = id * division;
   unsigned short endCol = (id+1) * division - 1;
 
   if (id == p) {
-    endCol += counter;
+    endCol += remainder;
   }
 
   std::cout << "ID: " << id << "Start Col: " << startCol << " endCol:" << endCol << std::endl;
