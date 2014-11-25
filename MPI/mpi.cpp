@@ -93,13 +93,115 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   float division = nCols/p;
   size_t remainder = nCols % p;
 
-  std::cout << "Cols" << nCols << "Remainder: " << remainder << std::endl;
-
   unsigned short startCol = id * division;
   unsigned short endCol = (id+1) * division - 1;
 
+  int blockLines = 10;
+
   if (id == (p-1)) {
     endCol += remainder;
+  }
+
+  short i=0;
+  MPI_Status status;
+
+  if(i == id && id == 0){
+    unsigned short currentLine = 1;
+    while(currentLine != nLines){
+      if((nLines-currentLine) < blockLines)
+        blockLines = (nLines-currentLine);
+      #define TAG 123
+
+      //process block
+      short pos = 0;
+      unsigned short send[blockLines];
+
+      for(unsigned short i = currentLine; i < (currentLine + blockLines); i++) {
+        currentLine++;
+        for (unsigned short j = startCol; j < endCol; j++) {
+          if(cols[i-1] == lines[j-1]) {
+            matrix[i][j] = matrix[i-1][j-1] + cost(i);
+          } else {    
+            matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
+          }
+        }
+        send[pos] = matrix[currentLine][endCol];
+        pos++;
+      }
+
+      MPI_Send(send,blockLines,MPI_UNSIGNED_SHORT,1,TAG,MPI_COMM_WORLD);
+    }
+  }
+
+  if(i == id && id != 0 && id!= p){
+    unsigned short currentLine = 1;
+   while(currentLine != nLines){
+      if((nLines-currentLine) < blockLines)
+        blockLines = (nLines-currentLine);
+      #define TAG 123
+
+      unsigned short input[blockLines];
+      MPI_Recv(input,blockLines,MPI_UNSIGNED_SHORT,(id-1),TAG,MPI_COMM_WORLD,&status);
+
+      //save input to matrix
+      short pos = 0;
+      short col = startCol -1 ;
+      for(unsigned short i = currentLine; i < (currentLine + blockLines); i++){
+          matrix[i][col] = input[pos];
+          pos++;
+        }
+
+      //process block
+      unsigned short send[blockLines];
+
+      pos = 0;
+      for(unsigned short i = currentLine; i < (currentLine + blockLines); i++) {
+        currentLine++;
+        for (unsigned short j = startCol; j < endCol; j++) {
+          if(cols[i-1] == lines[j-1]) {
+            matrix[i][j] = matrix[i-1][j-1] + cost(i);
+          } else {    
+            matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
+          }
+         }
+        send[pos] = matrix[currentLine][endCol];
+        pos++;
+      }
+
+      MPI_Send(send,blockLines,MPI_UNSIGNED_SHORT,(id+1),TAG,MPI_COMM_WORLD);
+    }
+  }
+
+  if(i == id && id!= p){
+    unsigned short currentLine = 1;
+   while(currentLine != nLines){
+      if((nLines-currentLine) < blockLines)
+        blockLines = (nLines-currentLine);
+      #define TAG 123
+
+      unsigned short input[blockLines];
+      MPI_Recv(input,blockLines,MPI_UNSIGNED_SHORT,(id-1),TAG,MPI_COMM_WORLD,&status);
+
+      //save input to matrix
+      short pos = 0;
+      short col = startCol -1 ;
+      for(unsigned short i = currentLine; i < (currentLine + blockLines); i++){
+          matrix[i][col] = input[pos];
+          pos++;
+      }
+
+      //process block
+      for(unsigned short i = currentLine; i < (currentLine + blockLines); i++) {
+        currentLine++;
+        for (unsigned short j = startCol; j < endCol; j++) {
+          if(cols[i-1] == lines[j-1]) {
+            matrix[i][j] = matrix[i-1][j-1] + cost(i);
+          } else {    
+            matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
+          }
+        }
+      }
+    }
   }
 
   std::cout << "ID: " << id << "Start Col: " << startCol << " endCol:" << endCol << std::endl;
