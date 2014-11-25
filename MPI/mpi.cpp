@@ -93,12 +93,12 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   float division = nCols/p;
   size_t remainder = nCols % p;
 
-  std::cout << "Remainder: " << remainder << std::endl;
+  std::cout << "Cols" << nCols << "Remainder: " << remainder << std::endl;
 
   unsigned short startCol = id * division;
   unsigned short endCol = (id+1) * division - 1;
 
-  if (id == p) {
+  if (id == (p-1)) {
     endCol += remainder;
   }
 
