@@ -8,6 +8,9 @@
 #include <algorithm>
 #include "mpi.h"
 
+#define BLOCK_SIZE 7
+#define TAG 123
+
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
 void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix);
 void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
@@ -92,13 +95,13 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   MPI_Comm_rank (MPI_COMM_WORLD, &id);
   MPI_Comm_size (MPI_COMM_WORLD, &p);
 
-  float division = nCols/p;
-  size_t remainder = nCols % p;
+  float division = (nCols - 1)/p;
+  size_t remainder = (nCols - 1) % p;
 
-  unsigned short startCol = id * division;
-  unsigned short endCol = (id+1) * division - 1;
+  unsigned short startCol = id * division + 1;
+  unsigned short endCol = (id+1) * division;
 
-  int blockLines = 1;
+  int blockLines = BLOCK_SIZE;
 
   if (id == (p-1)) {
     endCol += remainder;
@@ -106,25 +109,35 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
 
   MPI_Status status;
   
-  #define TAG 123
   if (id == 0) { //First process 
-    for (unsigned short currentLine = 0; currentLine < nLines; currentLine += blockLines) {
+    for (unsigned short currentLine = 1; currentLine < nLines; currentLine += blockLines) {
       unsigned short send[blockLines];
       processBlock(matrix, cols, lines, currentLine, startCol, blockLines, endCol, send);
       MPI_Send(send,blockLines, MPI_UNSIGNED_SHORT, 1, TAG,MPI_COMM_WORLD);
+
+      std::cout << "SEND: ";
+      for (int i = 0; i < blockLines; i++) {
+        std::cout << send[i] << " ";
+      }
+      std::cout << std::endl;
     }
   } else if (id == (p - 1)) { //Last processor
-    for (unsigned short currentLine = 0; currentLine < nLines; currentLine += blockLines) {
+    for (unsigned short currentLine = 1; currentLine < nLines; currentLine += blockLines) {
       unsigned short input[blockLines];
       unsigned short send[blockLines];
       MPI_Recv(input, blockLines, MPI_UNSIGNED_SHORT, (id-1), TAG, MPI_COMM_WORLD, &status);
       processBlock(matrix, cols, lines, currentLine, startCol, blockLines, endCol, send);
     }
   } else {
-    for (unsigned short currentLine = 0; currentLine < nLines; currentLine += blockLines) {
+    for (unsigned short currentLine = 1; currentLine < nLines; currentLine += blockLines) {
       unsigned short send[blockLines];
       unsigned short input[blockLines];
       MPI_Recv(input, blockLines, MPI_UNSIGNED_SHORT, (id-1), TAG,MPI_COMM_WORLD, &status);
+      std::cout << "RECEIVE: ";
+      for (int i = 0; i < blockLines; i++) {
+        std::cout << input[i] << " ";
+      }
+      std::cout << std::endl;
       processBlock(matrix, cols, lines, currentLine, startCol, blockLines, endCol, send);
       MPI_Send(send, blockLines, MPI_UNSIGNED_SHORT, (id+1), TAG, MPI_COMM_WORLD);
     }
@@ -236,17 +249,22 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
 
 
 void processBlock(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
-                  unsigned short startLine, unsigned short startCol, unsigned short blockHeight, unsigned short blockWidth, unsigned short send[]) {
+                  unsigned short startLine, unsigned short startCol, unsigned short blockHeight, unsigned short endCol, unsigned short send[]) {
   size_t sendPos = 0;
   for(unsigned short i = startLine; i < (startLine + blockHeight); i++) {
-    for (unsigned short j = startCol; j < (startCol + blockWidth); j++) {
+    std::cout << "LINHA: " << i << std::endl;
+    for (unsigned short j = startCol; j <= endCol; j++) {
+      std::cout << "COLUNA: " << j << std::endl;
+      std::cout << "Matrix EndCol: "<< endCol << std::endl;
       if(cols[i-1] == lines[j-1]) {
         matrix[i][j] = matrix[i-1][j-1] + cost(i);
       } else {    
         matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
       }
     }
-    send[sendPos] = matrix[i][startCol + blockWidth - 1];
+
+    std::cout << "I! :" << i << " END COL!!: "<< endCol << std::endl;
+    send[sendPos] = matrix[i][endCol];
     sendPos++;
   }
 }
