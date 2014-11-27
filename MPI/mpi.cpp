@@ -127,7 +127,7 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
       unsigned short input[blockLines];
       unsigned short send[blockLines];
       MPI_Recv(input, blockLines, MPI_UNSIGNED_SHORT, (id-1), id-1, MPI_COMM_WORLD, &status);
-      writeInput(matrix, currentLine, startCol, input);
+      writeInput(matrix, currentLine, startCol-1, input);
       processBlock(matrix, cols, lines, currentLine, startCol, blockLines, endCol, send);
     }
   } else {
@@ -140,7 +140,7 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
         std::cout << input[i] << " ";
       }
       std::cout << std::endl;*/
-      writeInput(matrix, currentLine, startCol, input);
+      writeInput(matrix, currentLine, startCol-1, input);
       processBlock(matrix, cols, lines, currentLine, startCol, blockLines, endCol, send);
       MPI_Send(send, blockLines, MPI_UNSIGNED_SHORT, (id+1), id, MPI_COMM_WORLD);
     }
