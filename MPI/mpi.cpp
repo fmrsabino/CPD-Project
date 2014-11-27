@@ -8,7 +8,7 @@
 #include <algorithm>
 #include "mpi.h"
 
-#define BLOCK_SIZE 7
+#define BLOCK_SIZE 2
 #define TAG 123
 
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
@@ -16,11 +16,13 @@ void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<u
 void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
 void processBlock(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
                   unsigned short startLine, unsigned short startCol, unsigned short blockHeight, unsigned short blockWidth, unsigned short send[]);
-void writeInput(std::vector< std::vector<unsigned short> > &matrix, unsigned short startLine, unsigned short col, unsigned short input[]);
+void writeInput(std::vector< std::vector<unsigned short> > &matrix, unsigned short startLine, unsigned short col, unsigned short input[], int inputSize);
 void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, unsigned short i, unsigned short j, std::stringstream &ss);
 void printMatrix(std::vector< std::vector<unsigned short> > &matrix);
 unsigned short cost(unsigned short cols);
 
+
+int id, p;
 int main(int argc, char* argv[]) {
   
   MPI_Init(&argc, &argv);
@@ -43,14 +45,14 @@ int main(int argc, char* argv[]) {
     backtrack(matrix, lines, cols, lines.size(), cols.size(), ss);
     std::string result = ss.str();
     std::reverse(result.begin(), result.end());
-    std::cout << result.size() << std::endl; 
-    std::cout << result << std::endl;
+    /*std::cout << result.size() << std::endl; 
+    std::cout << result << std::endl;*/
   }
   else {
     std::cout << "Error opening file" << std::endl;
     exit(EXIT_FAILURE);
   }
-  printMatrix(matrix);
+  //printMatrix(matrix);
   return 0; 
 }
 
@@ -92,7 +94,7 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   unsigned short nLines = matrix.size();
   unsigned short nCols = matrix[0].size();
 
-  int id, p;
+  
   MPI_Comm_rank (MPI_COMM_WORLD, &id);
   MPI_Comm_size (MPI_COMM_WORLD, &p);
 
@@ -110,43 +112,46 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
 
   MPI_Status status;
   
+
   if (id == 0) { //First process 
     for (unsigned short currentLine = 1; currentLine < nLines; currentLine += blockLines) {
+      if((nLines-currentLine) < blockLines)
+        blockLines = (nLines-currentLine);
+      
       unsigned short send[blockLines];
       processBlock(matrix, cols, lines, currentLine, startCol, blockLines, endCol, send);
-      MPI_Send(send,blockLines, MPI_UNSIGNED_SHORT, 1, id, MPI_COMM_WORLD);
 
-      /*std::cout << "SEND: ";
-      for (int i = 0; i < blockLines; i++) {
-        std::cout << send[i] << " ";
-      }*/
-      std::cout << std::endl;
+      MPI_Send(send,blockLines, MPI_UNSIGNED_SHORT, 1, id, MPI_COMM_WORLD);
     }
-  } else if (id == (p - 1)) { //Last processor
+  } else if (id == (p - 1)) { //Last process
     for (unsigned short currentLine = 1; currentLine < nLines; currentLine += blockLines) {
+      if((nLines-currentLine) < blockLines)
+        blockLines = (nLines-currentLine);
       unsigned short input[blockLines];
       unsigned short send[blockLines];
+      
       MPI_Recv(input, blockLines, MPI_UNSIGNED_SHORT, (id-1), id-1, MPI_COMM_WORLD, &status);
-      writeInput(matrix, currentLine, startCol-1, input);
+      writeInput(matrix, currentLine, startCol-1, input, blockLines);
       processBlock(matrix, cols, lines, currentLine, startCol, blockLines, endCol, send);
     }
-  } else {
+  } else { //Intermediate process
     for (unsigned short currentLine = 1; currentLine < nLines; currentLine += blockLines) {
-      unsigned short send[blockLines];
+      if((nLines-currentLine) < blockLines)
+        blockLines = (nLines-currentLine);
       unsigned short input[blockLines];
+      unsigned short send[blockLines];
+
       MPI_Recv(input, blockLines, MPI_UNSIGNED_SHORT, (id-1), id-1,MPI_COMM_WORLD, &status);
-      /*std::cout << "RECEIVE: ";
-      for (int i = 0; i < blockLines; i++) {
-        std::cout << input[i] << " ";
-      }
-      std::cout << std::endl;*/
-      writeInput(matrix, currentLine, startCol-1, input);
+      writeInput(matrix, currentLine, startCol-1, input, blockLines);
       processBlock(matrix, cols, lines, currentLine, startCol, blockLines, endCol, send);
+
       MPI_Send(send, blockLines, MPI_UNSIGNED_SHORT, (id+1), id, MPI_COMM_WORLD);
     }
   }
 
-  //std::cout << "ID: " << id << "Start Col: " << startCol << " endCol:" << endCol << std::endl;
+  if (id == p-1) { //Printing last column for check
+    printMatrix(matrix);
+  }
 
   MPI_Finalize();
 }
@@ -155,11 +160,11 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
 void processBlock(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
                   unsigned short startLine, unsigned short startCol, unsigned short blockHeight, unsigned short endCol, unsigned short send[]) {
   size_t sendPos = 0;
+
+
   for(unsigned short i = startLine; i < (startLine + blockHeight); i++) {
-    //std::cout << "LINHA: " << i << std::endl;
     for (unsigned short j = startCol; j <= endCol; j++) {
-      //std::cout << "COLUNA: " << j << std::endl;
-      //std::cout << "Matrix EndCol: "<< endCol << std::endl;
+
       if(cols[j-1] == lines[i-1]) {
         matrix[i][j] = matrix[i-1][j-1] + cost(i);
       } else {    
@@ -172,9 +177,9 @@ void processBlock(std::vector< std::vector<unsigned short> > &matrix, std::strin
   }
 }
 
-void writeInput(std::vector< std::vector<unsigned short> > &matrix, unsigned short startLine, unsigned short col, unsigned short input[]) {
-	for (unsigned short i = startLine; i < BLOCK_SIZE; i++) {
-		matrix[i][col] = input[i];
+void writeInput(std::vector< std::vector<unsigned short> > &matrix, unsigned short startLine, unsigned short col, unsigned short input[], int inputSize) {
+  for (unsigned short i = startLine; i < startLine + inputSize; i++) {
+		matrix[i][col] = input[i-startLine];
 	}
 }
 
