@@ -8,7 +8,6 @@
 #include <algorithm>
 #include "mpi.h"
 
-#define BLOCK_SIZE 2
 #define TAG 123
 
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
@@ -17,7 +16,8 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
 void processBlock(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
                   unsigned short startLine, unsigned short startCol, unsigned short blockHeight, unsigned short blockWidth, unsigned short send[]);
 void writeInput(std::vector< std::vector<unsigned short> > &matrix, unsigned short startLine, unsigned short col, unsigned short input[], int inputSize);
-void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, unsigned short i, unsigned short j, std::stringstream &ss);
+void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short startCol, unsigned short endCol);
+std::string processBacktrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short startLine, unsigned short startCol, unsigned short col);
 void printMatrix(std::vector< std::vector<unsigned short> > &matrix);
 unsigned short cost(unsigned short cols);
 
@@ -41,17 +41,11 @@ int main(int argc, char* argv[]) {
 
   std::stringstream ss;    
 
-  if(fillMatrixFromFile(path, matrix, lines, cols)) {
-    backtrack(matrix, lines, cols, lines.size(), cols.size(), ss);
-    std::string result = ss.str();
-    std::reverse(result.begin(), result.end());
-    /*std::cout << result.size() << std::endl; 
-    std::cout << result << std::endl;*/
-  }
-  else {
+  if(!fillMatrixFromFile(path, matrix, lines, cols)) {
     std::cout << "Error opening file" << std::endl;
     exit(EXIT_FAILURE);
   }
+
   //printMatrix(matrix);
   return 0; 
 }
@@ -104,7 +98,10 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   unsigned short startCol = id * division + 1;
   unsigned short endCol = (id+1) * division;
 
-  int blockLines = BLOCK_SIZE;
+  int blockLines = (nLines-1)/10;
+  blockLines += (nLines-1)%10;
+
+  std::cout << "block: " << blockLines << std::endl;
 
   if (id == (p-1)) {
     endCol += remainder;
@@ -153,6 +150,8 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
     printMatrix(matrix);
   }
 
+  backtrack(matrix, lines, cols, startCol, endCol);
+
   MPI_Finalize();
 }
 
@@ -160,7 +159,6 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
 void processBlock(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
                   unsigned short startLine, unsigned short startCol, unsigned short blockHeight, unsigned short endCol, unsigned short send[]) {
   size_t sendPos = 0;
-
 
   for(unsigned short i = startLine; i < (startLine + blockHeight); i++) {
     for (unsigned short j = startCol; j <= endCol; j++) {
@@ -183,23 +181,82 @@ void writeInput(std::vector< std::vector<unsigned short> > &matrix, unsigned sho
 	}
 }
 
+void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short startCol, unsigned short endCol) {
+  MPI_Status status;
+  std::string endResult;
+  
+  if (id == 0) { //First process 
+    int control = p - 1;
+    unsigned short input[1];
+    char backPart[endCol - startCol + (matrix[0].size() - 1) % p];
+    
+    // Receive matched characters from the other processors
+    while(control > 0) {
+      MPI_Recv(backPart, endCol - startCol + (matrix[0].size() - 1) % p, MPI_UNSIGNED_SHORT, control, control, MPI_COMM_WORLD, &status);
+      endResult.insert(0, std::string(backPart));
+      bzero(backPart,endCol - startCol + (matrix[0].size() - 1) % p);
+          std::cout << "CONTROL: " <<  endResult<< std::endl;
+      control--;
+    }
 
-void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short i, unsigned short j, std::stringstream &ss) {
-  while(i!=0 && j!=0){
-    if(cols[j-1] == lines[i-1]) {
-      ss << std::string(1, cols[j-1]);
-      i--;
-      j--;
-    }
-    else{
-      if(matrix[i][j-1] < matrix[i-1][j]){
-        i--;
-      }
-      else{
-        j--;
-      }
-    }
+    // Receive the position from the next processor
+    MPI_Recv(input, 1, MPI_UNSIGNED_SHORT, id+1, id+1, MPI_COMM_WORLD, &status);
+    endResult.insert(0, processBacktrack(matrix, lines, cols, input[0], startCol, endCol));
+  } else if (id == (p - 1)) { //Last process
+    processBacktrack(matrix, lines, cols, matrix.size()-1, startCol, endCol);
+  } else { //Intermediate process
+    unsigned short input[1];
+    MPI_Recv(input, 1, MPI_UNSIGNED_SHORT, id+1, id+1, MPI_COMM_WORLD, &status);
+    processBacktrack(matrix, lines, cols, input[0], startCol, endCol);
   }
+
+  std::cout << endResult.size() << std::endl; 
+  std::cout << endResult << std::endl;
+}
+
+std::string processBacktrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short line, unsigned short startCol, unsigned short col) {
+  std::stringstream ss;
+  bool mambo = false;
+
+  std::cout << "COL: " << col << " LINE: " << line << " STARTCOL: " << startCol << std::endl;
+
+  while(line != 0 && col >= startCol) {
+    if(cols[col-1] == lines[line-1]) {
+      ss << std::string(1, cols[col-1]);
+      line--;
+      col--;
+
+    }
+    else {
+      if(matrix[line][col-1] < matrix[line-1][col]){
+        line--;
+      }
+      else {
+        col--;
+      }
+    }
+    if(id ==1)
+    std::cout << "COL: " << col << " LINE: " << line<< std::endl;
+  }
+  
+  std::string result = ss.str();
+  std::reverse(result.begin(), result.end());
+
+  char send[result.length()]; 
+  strcpy(send,result.c_str());
+  
+
+std::cout << "LINHA: " <<line << std::endl;
+    unsigned short linePacket[] = {line};
+
+
+
+  if(id != 0) {
+    MPI_Send(send, result.length(), MPI_CHAR, 0, id, MPI_COMM_WORLD);
+    MPI_Send(linePacket, 1, MPI_UNSIGNED_SHORT, (id-1), id, MPI_COMM_WORLD);
+  }
+
+  return result;
 }
 
 void printMatrix(std::vector< std::vector<unsigned short> > &matrix) {
