@@ -8,8 +8,6 @@
 #include <algorithm>
 #include "mpi.h"
 
-#define THRESHOLD 50
-
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
 void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix);
 void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
@@ -97,15 +95,8 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   unsigned short startCol = id * division + 1;
   unsigned short endCol = (id+1) * division;
 
-  int blockLines;
-  /*int blockLines = (nLines-1)/10;
-  blockLines += (nLines-1)%10;*/
-
-  if (nLines > THRESHOLD) {
-    blockLines = (nLines-1)/THRESHOLD + THRESHOLD;
-  } else {
-    blockLines = nLines-1;
-  }
+  int blockLines = (nLines-1)/10;
+  blockLines += (nLines-1)%10;
 
   //std::cout << "block: " << blockLines << std::endl;
 
@@ -114,41 +105,47 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   }
 
   MPI_Status status;
-  
+  MPI_Request myRequest;
 
   if (id == 0) { //First process 
     for (unsigned short currentLine = 1; currentLine < nLines; currentLine += blockLines) {
+      size_t blockId = 0;
       if((nLines-currentLine) < blockLines)
         blockLines = (nLines-currentLine);
       
       unsigned short send[blockLines];
       processBlock(matrix, cols, lines, currentLine, startCol, blockLines, endCol, send);
 
-      MPI_Send(send,blockLines, MPI_UNSIGNED_SHORT, 1, id, MPI_COMM_WORLD);
+      MPI_Isend(send,blockLines, MPI_UNSIGNED_SHORT, 1, blockId, MPI_COMM_WORLD, &myRequest);
+      blockId++;
     }
   } else if (id == (p - 1)) { //Last process
     for (unsigned short currentLine = 1; currentLine < nLines; currentLine += blockLines) {
+      size_t blockId = 0;
       if((nLines-currentLine) < blockLines)
         blockLines = (nLines-currentLine);
       unsigned short input[blockLines];
       unsigned short send[blockLines];
       
-      MPI_Recv(input, blockLines, MPI_UNSIGNED_SHORT, (id-1), id-1, MPI_COMM_WORLD, &status);
+      MPI_Recv(input, blockLines, MPI_UNSIGNED_SHORT, (id-1), blockId, MPI_COMM_WORLD, &status);
       writeInput(matrix, currentLine, startCol-1, input, blockLines);
       processBlock(matrix, cols, lines, currentLine, startCol, blockLines, endCol, send);
+      blockId++;
     }
   } else { //Intermediate process
     for (unsigned short currentLine = 1; currentLine < nLines; currentLine += blockLines) {
+      size_t blockId = 0;
       if((nLines-currentLine) < blockLines)
         blockLines = (nLines-currentLine);
       unsigned short input[blockLines];
       unsigned short send[blockLines];
 
-      MPI_Recv(input, blockLines, MPI_UNSIGNED_SHORT, (id-1), id-1,MPI_COMM_WORLD, &status);
+      MPI_Recv(input, blockLines, MPI_UNSIGNED_SHORT, (id-1), blockId,MPI_COMM_WORLD, &status);
       writeInput(matrix, currentLine, startCol-1, input, blockLines);
       processBlock(matrix, cols, lines, currentLine, startCol, blockLines, endCol, send);
 
-      MPI_Send(send, blockLines, MPI_UNSIGNED_SHORT, (id+1), id, MPI_COMM_WORLD);
+      MPI_Isend(send, blockLines, MPI_UNSIGNED_SHORT, (id+1), blockId, MPI_COMM_WORLD, &myRequest);
+      blockId++;
     }
   }
 
