@@ -31,3 +31,4 @@ lcs-omp
 lcs-omp-functions
 mpi
 mpi_async
+mpi_fix
