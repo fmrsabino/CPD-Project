@@ -16,7 +16,7 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
 void processBlock(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
                   unsigned short startLine, unsigned short startCol, unsigned short blockHeight, unsigned short blockWidth, unsigned short send[]);
 void writeInput(std::vector< std::vector<unsigned short> > &matrix, unsigned short startLine, unsigned short col, unsigned short input[], int inputSize);
-void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short startCol, unsigned short endCol);
+void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short startCol, unsigned short endCol, unsigned short lastBlockWidth);
 std::string processBacktrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short startLine, unsigned short startCol, unsigned short col);
 void printMatrix(std::vector< std::vector<unsigned short> > &matrix);
 unsigned short cost(unsigned short cols);
@@ -87,7 +87,6 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
   unsigned short nLines = matrix.size();
   unsigned short nCols = matrix[0].size();
 
-  
   MPI_Comm_rank (MPI_COMM_WORLD, &id);
   MPI_Comm_size (MPI_COMM_WORLD, &p);
 
@@ -152,7 +151,8 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
     }
   }
 
-  backtrack(matrix, lines, cols, startCol, endCol);
+  size_t lastBlockWidth = division + remainder;
+  backtrack(matrix, lines, cols, startCol, endCol, lastBlockWidth);
 
   MPI_Finalize();
 }
@@ -183,9 +183,8 @@ void writeInput(std::vector< std::vector<unsigned short> > &matrix, unsigned sho
 	}
 }
 
-void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short startCol, unsigned short endCol) {
+void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short startCol, unsigned short endCol, unsigned short lastBlockWidth) {
   MPI_Status status;
-  size_t lastBlockWidth = endCol - startCol + (matrix[0].size() - 1) % p;
   
   if (id == 0) { //First process
   	std::string endResult;
