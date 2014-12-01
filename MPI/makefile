@@ -5,4 +5,4 @@ all:
 	cp mpi /mnt/nimbus/glusterfs/cpd/3
 	cp mpi_async /mnt/nimbus/glusterfs/cpd/3
 clean:
-	rm -rf *o mpi
+	rm -rf *o mpi mpi_async mpi_fix

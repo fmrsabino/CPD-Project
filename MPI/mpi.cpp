@@ -196,9 +196,11 @@ void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &
     
     // Receive matched characters from the other processors
     while(control > 0) {
-      MPI_Recv(backPart, lastBlockWidth, MPI_UNSIGNED_SHORT, control, control, MPI_COMM_WORLD, &status);
-      endResult.insert(0, std::string(backPart));
-      bzero(backPart, lastBlockWidth);
+      MPI_Recv(backPart, lastBlockWidth, MPI_CHAR, control, control, MPI_COMM_WORLD, &status);
+      int count = 0;
+      MPI_Get_count(&status, MPI_CHAR, &count);
+      endResult.insert(0, std::string(backPart, count));
+      std::fill_n(backPart, lastBlockWidth, '\0');
       control--;
     }
 
