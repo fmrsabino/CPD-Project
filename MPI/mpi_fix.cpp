@@ -53,7 +53,7 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  if (id == 1)
+  if (id == p-1)
   	printMatrix(matrix);
 
   return 0; 
@@ -126,7 +126,7 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
     blockLines = nLines;
   }
 
-  blockLines = 2;
+  blockLines = 3;
 
   MPI_Status status;
 
@@ -137,13 +137,6 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
       unsigned short send[blockLines];
      	
       processBlockFirst(matrix, cols, lines, currentLine, blockLines, send);
-
-      std::cout << "send: ";
-      for (int i = 0; i < blockLines; ++i) {
-      	std::cout << send[i] << " ";
-      }
-      std::cout << std::endl;
-
       MPI_Send(send, blockLines, MPI_UNSIGNED_SHORT, 1, id, MPI_COMM_WORLD);
     }
   } else if (id == (p - 1)) { //Last process
@@ -155,13 +148,6 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
 
       MPI_Recv(receive, blockLines, MPI_UNSIGNED_SHORT, (id-1), id-1, MPI_COMM_WORLD, &status);
       diagonalValue = receive[blockLines-1]; //save the last position
-
-      /*std::cout << "RECEIVE: ";
-      for (int i = 0; i < blockLines; ++i) {
-      	std::cout << receive[i] << " ";
-      }
-      std::cout << std::endl;*/
-
       processBlockLast(matrix, cols, lines, currentLine, blockLines, receive, diagonalValue);
     }
   } else { //Intermediate process
@@ -174,14 +160,6 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
 
       MPI_Recv(receive, blockLines, MPI_UNSIGNED_SHORT, (id-1), id-1, MPI_COMM_WORLD, &status);
       diagonalValue = receive[blockLines-1]; //save the last position
-
-      if (id == 1) {
-      	std::cout << "RECEIVE: ";
-	      for (int i = 0; i < blockLines; ++i) {
-	      	std::cout << receive[i] << " ";
-	      }
-      	std::cout << std::endl;
-      }
       processBlockMiddle(matrix, cols, lines, currentLine, blockLines, send, receive, diagonalValue);
       MPI_Send(send, blockLines, MPI_UNSIGNED_SHORT, (id+1), id, MPI_COMM_WORLD);
     }
@@ -219,7 +197,8 @@ void processBlockMiddle(std::vector< std::vector<unsigned short> > &matrix, std:
                   unsigned short startLine, unsigned short blockHeight, unsigned short send[], unsigned short receive[], unsigned short diagonalValue) {
   size_t sendPos = 0;
   size_t startCompare;
-  
+  size_t absolutePosition = 0;
+
   for(unsigned short i = startLine; i < (startLine + blockHeight); i++) {
   	startCompare = startStringCol;
     for (unsigned short j = 0; j < matrix[0].size(); j++) {
@@ -231,21 +210,23 @@ void processBlockMiddle(std::vector< std::vector<unsigned short> > &matrix, std:
     				if(i == startLine) {
     					matrix[i][j] = diagonalValue + cost(i);
     				} else {
-    					matrix[i][j] = receive[i-2] + cost(i);
+    					matrix[i][j] = receive[i - startLine - 1] + cost(i);
     				}
     			}
     		} else {
     			matrix[i][j] = matrix[i-1][j-1] + cost(i);
     		}
     	} else {
-    		if (j == 0) {
-      		matrix[i][j] = std::max(receive[i-1], matrix[i-1][j]);
-      	} else {
-      		matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
-      	}
-      }
-      startCompare++;
+    		if (j == 0) {    			
+    			matrix[i][j] = std::max(receive[absolutePosition], matrix[i-1][j]);
+    		} else {
+    			matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
+    		}
+    	}
+    	
+      	startCompare++;
     }
+    absolutePosition++;
     send[sendPos] = matrix[i][matrix[0].size()-1];
     sendPos++;
   }
@@ -254,38 +235,36 @@ void processBlockMiddle(std::vector< std::vector<unsigned short> > &matrix, std:
 void processBlockLast(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
                   unsigned short startLine, unsigned short blockHeight, unsigned short receive[], unsigned short diagonalValue) {
   size_t startCompare;
-  
+  size_t absolutePosition = 0;
+
   for(unsigned short i = startLine; i < (startLine + blockHeight); i++) {
   	startCompare = startStringCol;
     for (unsigned short j = 0; j < matrix[0].size(); j++) {
-    	//std::cout << "COLS: " << cols[startCompare] << " LINES: " << lines[i-1] << std::endl;
     	if(cols[startCompare] == lines[i-1]) {
     		if (i == startLine || j == 0) {
     			if(i == 1) {
     				matrix[i][j] = cost(i);
     			} else if (j == 0) {
     				if(i == startLine) {
-    					//std::cout << "INCREMENTAR 1!" << std::endl;
     					matrix[i][j] = diagonalValue + cost(i);
     				} else {
-    					//std::cout << "INCREMENTAR 2!" << std::endl;
-    					//std::cout << "RECEIVE[i-1]= " << receive[i-2] << std::endl;
-    					matrix[i][j] = receive[i-2] + cost(i);
+    					matrix[i][j] = receive[i - startLine - 1] + cost(i);
     				}
     			}
     		} else {
-    			//std::cout << "INCREMENTAR 3!" << std::endl;
     			matrix[i][j] = matrix[i-1][j-1] + cost(i);
     		}
     	} else {
-    		if (j == 0) {
-      		matrix[i][j] = std::max(receive[i-1], matrix[i-1][j]);
-      	} else {
-      		matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
-      	}
-      }
-      startCompare++;
+    		if (j == 0) {    			
+    			matrix[i][j] = std::max(receive[absolutePosition], matrix[i-1][j]);
+    		} else {
+    			matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
+    		}
+    	}
+    	
+      	startCompare++;
     }
+    absolutePosition++;
   }
 }
 
