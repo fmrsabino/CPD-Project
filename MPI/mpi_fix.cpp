@@ -24,6 +24,7 @@ unsigned short cost(unsigned short cols);
 
 int id, p;
 unsigned short startStringCol;
+std::string colString;
 
 int main(int argc, char* argv[]) {
   
@@ -48,8 +49,8 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  if (id == (p-1))
-  	printMatrix(matrix);
+  /*if (id == (p-1))
+  	printMatrix(matrix);*/
 
   return 0; 
 }
@@ -83,6 +84,9 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned shor
   	if (id == (p-1)) {
     	division += remainder;
   	}
+
+    colString = cols.substr((nCols/p)*id, division);
+    //std::cout << "ID=" << id << " STRING = " << colString << std::endl;
 	
     unsigned short lastBlockWidth = division + remainder;
   	createMatrix(lines.size()+1, division+1, matrix);
@@ -103,11 +107,7 @@ void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<u
 
 void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, unsigned short lastBlockWidth) {
   unsigned short nLines = matrix.size();
-  //unsigned short nCols = matrix[0].size();
 
-  /*std::cout << "P: "<< id <<" LINES: " << nLines << std::endl;
-  std::cout << "P: "<< id << " COLS: " << nCols << std::endl;*/
-	
   int blockLines;
 
   if (nLines > THRESHOLD) {
@@ -116,7 +116,7 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
     blockLines = nLines;
   }
 
-  blockLines = 3;
+  blockLines = 2;
 
   MPI_Status status;
 
@@ -156,25 +156,23 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
     }
   }
 
+  backtrack(matrix, lines, cols, lastBlockWidth);
   MPI_Finalize();
   return;
-  backtrack(matrix, lines, cols, lastBlockWidth);
+  
 }
 
 void processBlock(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
                   unsigned short startLine, unsigned short blockHeight, unsigned short send[]) {
   size_t sendPos = 0;
-  size_t startCompare;
 
   for(unsigned short i = startLine; i < (startLine + blockHeight); i++) {
-    startCompare = startStringCol;
     for (unsigned short j = 1; j < matrix[0].size(); j++) {
-      if(cols[startCompare] == lines[i-1]) {
+      if(colString[j-1] == lines[i-1]) {
         matrix[i][j] = matrix[i-1][j-1] + cost(i);
       } else {    
         matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
       }
-      startCompare++;
     }
 
     send[sendPos] = matrix[i][matrix[0].size()-1];
@@ -226,21 +224,20 @@ void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &
 
 std::string processBacktrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short line) {
   std::stringstream ss;
-  unsigned short startCompare = startStringCol;
-  unsigned short col = matrix[0].size();
+  //Number of columns excluding the first column (that belongs to the other processor)
+  unsigned short col = matrix[0].size() - 1;
 
-  while(line != 0 && col >= 0) {
-    if(cols[startCompare] == lines[line-1]) {
-      ss << std::string(1, cols[col-1]);
+  while(line != 0 && col > 0) {
+    //std::cout << "COMPARING " << lines[line-1] << " WITH " << colString[col-1] << std::endl;
+    if(colString[col-1] == lines[line-1]) {
+      ss << std::string(1, colString[col-1]);
       line--;
       col--;
-      startCompare--;
     } else {
       if(matrix[line][col-1] < matrix[line-1][col]) {
         line--;
       } else {
         col--;
-        startCompare--;
       }
     }
   }
