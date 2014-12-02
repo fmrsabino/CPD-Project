@@ -12,17 +12,12 @@
 
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
 void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix);
-void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
+void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, unsigned short lastBlockWidth);
 void processBlock(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
-                  unsigned short startLine, unsigned short startCol, unsigned short blockHeight, unsigned short blockWidth, unsigned short send[]);
-void processBlockFirst(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
                   unsigned short startLine, unsigned short blockHeight, unsigned short send[]);
-void processBlockMiddle(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
-                  unsigned short startLine, unsigned short blockHeight, unsigned short send[], unsigned short receive[], unsigned short diagonalValue);
-void processBlockLast(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
-                  unsigned short startLine, unsigned short blockHeight, unsigned short receive[], unsigned short diagonalValue);
-void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short startCol, unsigned short endCol);
-std::string processBacktrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short startLine, unsigned short startCol, unsigned short col);
+void writeInput(std::vector< std::vector<unsigned short> > &matrix, unsigned short startLine, unsigned short input[], int inputSize);
+void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short lastBlockWidth);
+std::string processBacktrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short line);
 void printMatrix(std::vector< std::vector<unsigned short> > &matrix);
 unsigned short cost(unsigned short cols);
 
@@ -53,7 +48,7 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  if (id == p-1)
+  if (id == (p-1))
   	printMatrix(matrix);
 
   return 0; 
@@ -89,14 +84,9 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned shor
     	division += remainder;
   	}
 	
-  	if (id == 0) {
-  		//Create matrix with additional zeros column
-  		createMatrix(lines.size()+1, division+1, matrix);
-  	} else {
-  		createMatrix(lines.size()+1, division, matrix);
-  	}
-    
-    processMatrix(matrix, cols, lines);
+    unsigned short lastBlockWidth = division + remainder;
+  	createMatrix(lines.size()+1, division+1, matrix);
+    processMatrix(matrix, cols, lines, lastBlockWidth);
     
     return true;
   } else {
@@ -111,7 +101,7 @@ void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<u
   }
 }
 
-void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines) {
+void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, unsigned short lastBlockWidth) {
   unsigned short nLines = matrix.size();
   //unsigned short nCols = matrix[0].size();
 
@@ -136,51 +126,50 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
         blockLines = (nLines-currentLine);
       unsigned short send[blockLines];
      	
-      processBlockFirst(matrix, cols, lines, currentLine, blockLines, send);
+      processBlock(matrix, cols, lines, currentLine, blockLines, send);
       MPI_Send(send, blockLines, MPI_UNSIGNED_SHORT, 1, id, MPI_COMM_WORLD);
     }
   } else if (id == (p - 1)) { //Last process
     for (unsigned short currentLine = 1; currentLine < nLines; currentLine += blockLines) {
-      if((nLines-currentLine) < blockLines)
+      if((nLines-currentLine) < blockLines) {
         blockLines = (nLines-currentLine);
+      }
+      unsigned short send[blockLines];
       unsigned short receive[blockLines];
-      unsigned short diagonalValue = 0;
 
       MPI_Recv(receive, blockLines, MPI_UNSIGNED_SHORT, (id-1), id-1, MPI_COMM_WORLD, &status);
-      diagonalValue = receive[blockLines-1]; //save the last position
-      processBlockLast(matrix, cols, lines, currentLine, blockLines, receive, diagonalValue);
+      writeInput(matrix, currentLine, receive, blockLines);
+      processBlock(matrix, cols, lines, currentLine, blockLines, send);
     }
   } else { //Intermediate process
     for (unsigned short currentLine = 1; currentLine < nLines; currentLine += blockLines) {
-      if((nLines-currentLine) < blockLines)
+      if((nLines-currentLine) < blockLines) {
         blockLines = (nLines-currentLine);
+      }
       unsigned short receive[blockLines];
       unsigned short send[blockLines];
-      unsigned short diagonalValue = 0;
 
       MPI_Recv(receive, blockLines, MPI_UNSIGNED_SHORT, (id-1), id-1, MPI_COMM_WORLD, &status);
-      diagonalValue = receive[blockLines-1]; //save the last position
-      processBlockMiddle(matrix, cols, lines, currentLine, blockLines, send, receive, diagonalValue);
+      writeInput(matrix, currentLine, receive, blockLines);
+      processBlock(matrix, cols, lines, currentLine, blockLines, send);
       MPI_Send(send, blockLines, MPI_UNSIGNED_SHORT, (id+1), id, MPI_COMM_WORLD);
     }
   }
 
   MPI_Finalize();
-	return;
-
-  backtrack(matrix, lines, cols, 0, matrix[0].size());
+  return;
+  backtrack(matrix, lines, cols, lastBlockWidth);
 }
 
-
-void processBlockFirst(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
+void processBlock(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
                   unsigned short startLine, unsigned short blockHeight, unsigned short send[]) {
   size_t sendPos = 0;
   size_t startCompare;
 
   for(unsigned short i = startLine; i < (startLine + blockHeight); i++) {
-  	startCompare = startStringCol;
+    startCompare = startStringCol;
     for (unsigned short j = 1; j < matrix[0].size(); j++) {
-    	if(cols[startCompare] == lines[i-1]) {
+      if(cols[startCompare] == lines[i-1]) {
         matrix[i][j] = matrix[i-1][j-1] + cost(i);
       } else {    
         matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
@@ -193,87 +182,17 @@ void processBlockFirst(std::vector< std::vector<unsigned short> > &matrix, std::
   }
 }
 
-void processBlockMiddle(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
-                  unsigned short startLine, unsigned short blockHeight, unsigned short send[], unsigned short receive[], unsigned short diagonalValue) {
-  size_t sendPos = 0;
-  size_t startCompare;
-  size_t absolutePosition = 0;
-
-  for(unsigned short i = startLine; i < (startLine + blockHeight); i++) {
-  	startCompare = startStringCol;
-    for (unsigned short j = 0; j < matrix[0].size(); j++) {
-    	if(cols[startCompare] == lines[i-1]) {
-    		if (i == startLine || j == 0) {
-    			if(i == 1) {
-    				matrix[i][j] = cost(i);
-    			} else if (j == 0) {
-    				if(i == startLine) {
-    					matrix[i][j] = diagonalValue + cost(i);
-    				} else {
-    					matrix[i][j] = receive[i - startLine - 1] + cost(i);
-    				}
-    			}
-    		} else {
-    			matrix[i][j] = matrix[i-1][j-1] + cost(i);
-    		}
-    	} else {
-    		if (j == 0) {    			
-    			matrix[i][j] = std::max(receive[absolutePosition], matrix[i-1][j]);
-    		} else {
-    			matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
-    		}
-    	}
-    	
-      	startCompare++;
-    }
-    absolutePosition++;
-    send[sendPos] = matrix[i][matrix[0].size()-1];
-    sendPos++;
+void writeInput(std::vector< std::vector<unsigned short> > &matrix, unsigned short startLine, unsigned short input[], int inputSize) {
+  for (unsigned short i = startLine; i < startLine + inputSize; i++) {
+    matrix[i][0] = input[i-startLine];
   }
 }
 
-void processBlockLast(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, 
-                  unsigned short startLine, unsigned short blockHeight, unsigned short receive[], unsigned short diagonalValue) {
-  size_t startCompare;
-  size_t absolutePosition = 0;
-
-  for(unsigned short i = startLine; i < (startLine + blockHeight); i++) {
-  	startCompare = startStringCol;
-    for (unsigned short j = 0; j < matrix[0].size(); j++) {
-    	if(cols[startCompare] == lines[i-1]) {
-    		if (i == startLine || j == 0) {
-    			if(i == 1) {
-    				matrix[i][j] = cost(i);
-    			} else if (j == 0) {
-    				if(i == startLine) {
-    					matrix[i][j] = diagonalValue + cost(i);
-    				} else {
-    					matrix[i][j] = receive[i - startLine - 1] + cost(i);
-    				}
-    			}
-    		} else {
-    			matrix[i][j] = matrix[i-1][j-1] + cost(i);
-    		}
-    	} else {
-    		if (j == 0) {    			
-    			matrix[i][j] = std::max(receive[absolutePosition], matrix[i-1][j]);
-    		} else {
-    			matrix[i][j] = std::max(matrix[i][j-1], matrix[i-1][j]);
-    		}
-    	}
-    	
-      	startCompare++;
-    }
-    absolutePosition++;
-  }
-}
-
-void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short startCol, unsigned short endCol) {
+void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short lastBlockWidth) {
   MPI_Status status;
-  size_t lastBlockWidth = endCol - startCol + (matrix[0].size() - 1) % p;
   
   if (id == 0) { //First process
-  	std::string endResult;
+    std::string endResult;
     int control = p - 1;
     unsigned short input[1];
     char backPart[lastBlockWidth];
@@ -281,47 +200,55 @@ void backtrack(std::vector< std::vector<unsigned short> > &matrix, std::string &
     
     // Receive matched characters from the other processors
     while(control > 0) {
-      MPI_Recv(backPart, lastBlockWidth, MPI_UNSIGNED_SHORT, control, control, MPI_COMM_WORLD, &status);
-      endResult.insert(0, std::string(backPart));
-      bzero(backPart, lastBlockWidth);
+      MPI_Recv(backPart, lastBlockWidth, MPI_CHAR, control, control, MPI_COMM_WORLD, &status);
+      int count = 0;
+      MPI_Get_count(&status, MPI_CHAR, &count);
+      endResult.insert(0, std::string(backPart, count));
+      std::fill_n(backPart, lastBlockWidth, '\0');
       control--;
     }
 
     // Receive the position from the next processor
     MPI_Recv(input, 1, MPI_UNSIGNED_SHORT, id+1, id+1, MPI_COMM_WORLD, &status);
-    endResult.insert(0, processBacktrack(matrix, lines, cols, input[0], startCol, endCol));
+    endResult.insert(0, processBacktrack(matrix, lines, cols, input[0]));
 
     //Print the results
     std::cout << endResult.size() << std::endl; 
-  	std::cout << endResult << std::endl;
+    std::cout << endResult << std::endl;
   } else if (id == (p - 1)) { //Last process
-    processBacktrack(matrix, lines, cols, matrix.size()-1, startCol, endCol);
+    processBacktrack(matrix, lines, cols, matrix.size()-1);
   } else { //Intermediate process
     unsigned short input[1];
     MPI_Recv(input, 1, MPI_UNSIGNED_SHORT, id+1, id+1, MPI_COMM_WORLD, &status);
-    processBacktrack(matrix, lines, cols, input[0], startCol, endCol);
+    processBacktrack(matrix, lines, cols, input[0]);
   }
 }
 
-std::string processBacktrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short line, unsigned short startCol, unsigned short col) {
-	std::string result;
-	
-  while(line != 0 && col >= startCol) {
-    if(cols[col-1] == lines[line-1]) {
-      result.insert(0, 1, cols[col-1]);
+std::string processBacktrack(std::vector< std::vector<unsigned short> > &matrix, std::string &lines, std::string &cols, unsigned short line) {
+  std::stringstream ss;
+  unsigned short startCompare = startStringCol;
+  unsigned short col = matrix[0].size();
+
+  while(line != 0 && col >= 0) {
+    if(cols[startCompare] == lines[line-1]) {
+      ss << std::string(1, cols[col-1]);
       line--;
       col--;
+      startCompare--;
     } else {
-    	if(matrix[line][col-1] < matrix[line-1][col]) {
-    		line--;
-    	} else {
-    		col--;
-    	}
-   	}
+      if(matrix[line][col-1] < matrix[line-1][col]) {
+        line--;
+      } else {
+        col--;
+        startCompare--;
+      }
+    }
   }
   
+  std::string result = ss.str();
+  std::reverse(result.begin(), result.end());
 
- 	char send[result.length()]; 
+  char send[result.length()]; 
   strcpy(send,result.c_str());
   
   unsigned short linePacket[] = {line};
