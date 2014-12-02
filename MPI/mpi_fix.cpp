@@ -116,7 +116,7 @@ void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::stri
     blockLines = nLines;
   }
 
-  blockLines = 2;
+  //blockLines = 2;
 
   MPI_Status status;
 
