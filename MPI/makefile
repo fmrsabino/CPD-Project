@@ -6,4 +6,4 @@ all:
 	cp mpi_async_old /mnt/nimbus/glusterfs/cpd/3
 	cp lcs-mpi /mnt/nimbus/glusterfs/cpd/3
 clean:
-	rm -rf *o mpi_old mpi_async lcs-mpi
+	rm -rf *o mpi_old mpi_async_old lcs-mpi
