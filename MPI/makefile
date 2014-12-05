@@ -1,9 +1,9 @@
 all:
-	mpic++ -o mpi mpi.cpp -Wall -ansi
-	mpic++ -o mpi_async mpi_async.cpp -Wall -ansi
-	mpic++ -o mpi_fix mpi_fix.cpp -Wall -ansi
-	cp mpi /mnt/nimbus/glusterfs/cpd/3
-	cp mpi_async /mnt/nimbus/glusterfs/cpd/3
-	cp mpi_fix /mnt/nimbus/glusterfs/cpd/3
+	mpic++ -o mpi_old mpi_old.cpp -Wall -ansi
+	mpic++ -o mpi_async_old mpi_async_old.cpp -Wall -ansi
+	mpic++ -o lcs-mpi lcs-mpi.cpp -Wall -ansi
+	cp mpi_old /mnt/nimbus/glusterfs/cpd/3
+	cp mpi_async_old /mnt/nimbus/glusterfs/cpd/3
+	cp lcs-mpi /mnt/nimbus/glusterfs/cpd/3
 clean:
-	rm -rf *o mpi mpi_async mpi_fix
+	rm -rf *o mpi_old mpi_async lcs-mpi

@@ -29,6 +29,6 @@
 lcs-serial
 lcs-omp
 lcs-omp-functions
-mpi
-mpi_async
-mpi_fix
+lcs-mpi
+mpi_async_old
+mpi_old

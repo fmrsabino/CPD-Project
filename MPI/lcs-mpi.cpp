@@ -8,8 +8,6 @@
 #include <algorithm>
 #include "mpi.h"
 
-#define THRESHOLD 50
-
 bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines);
 void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<unsigned short> > &matrix);
 void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, unsigned short lastBlockWidth);
@@ -49,9 +47,6 @@ int main(int argc, char* argv[]) {
     exit(EXIT_FAILURE);
   }
 
-  /*if (id == (p-1))
-  	printMatrix(matrix);*/
-
   return 0; 
 }
 
@@ -86,7 +81,6 @@ bool fillMatrixFromFile(std::string path, std::vector< std::vector<unsigned shor
   	}
 
     colString = cols.substr((nCols/p)*id, division);
-    //std::cout << "ID=" << id << " STRING = " << colString << std::endl;
 	
     unsigned short lastBlockWidth = division + remainder;
   	createMatrix(lines.size()+1, division+1, matrix);
@@ -108,15 +102,7 @@ void createMatrix(unsigned short l, unsigned short c, std::vector< std::vector<u
 void processMatrix(std::vector< std::vector<unsigned short> > &matrix, std::string &cols, std::string &lines, unsigned short lastBlockWidth) {
   unsigned short nLines = matrix.size();
 
-  int blockLines;
-
-  if (nLines > THRESHOLD) {
-    blockLines = nLines/THRESHOLD + THRESHOLD;
-  } else {
-    blockLines = nLines;
-  }
-
-  //blockLines = 2;
+  int blockLines = 10;
 
   MPI_Status status;
 
@@ -228,7 +214,6 @@ std::string processBacktrack(std::vector< std::vector<unsigned short> > &matrix,
   unsigned short col = matrix[0].size() - 1;
 
   while(line != 0 && col > 0) {
-    //std::cout << "COMPARING " << lines[line-1] << " WITH " << colString[col-1] << std::endl;
     if(colString[col-1] == lines[line-1]) {
       ss << std::string(1, colString[col-1]);
       line--;
